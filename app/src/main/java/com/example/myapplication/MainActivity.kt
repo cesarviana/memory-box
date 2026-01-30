@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -21,6 +22,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
+
+    private var mediaPlayer: MediaPlayer? = null
 
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -78,7 +81,7 @@ class MainActivity : ComponentActivity() {
             imageAnalyzer = ImageAnalysis.Builder()
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, FacesDetector(viewBinding))
+                    it.setAnalyzer(cameraExecutor, FacesDetector(this, viewBinding))
                 }
 
             try {
@@ -96,13 +99,18 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
 
     companion object {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
-    class FacesDetector(private val viewBinding: ActivityMainBinding) : ImageAnalysis.Analyzer {
+    class FacesDetector(
+        private val activity: MainActivity,
+        private val viewBinding: ActivityMainBinding,
+    ) : ImageAnalysis.Analyzer {
         private val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
             .build()
@@ -117,6 +125,13 @@ class MainActivity : ComponentActivity() {
 
                 detector.process(image)
                     .addOnSuccessListener {
+                        if (it.size == 1 && activity.mediaPlayer == null) {
+                            activity.mediaPlayer = MediaPlayer.create(activity, R.raw.phone_ringing)
+                            activity.mediaPlayer?.start()
+                        } else if (it.size == 2) {
+                            activity.mediaPlayer?.release()
+                            activity.mediaPlayer = null
+                        }
                         viewBinding.textView.text = it.size.toString()
                     }
                     .addOnFailureListener {
