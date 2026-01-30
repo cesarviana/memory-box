@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +24,16 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
+
+    private enum class AppState {
+        INITIAL,
+        PHONE_RINGING,
+        PLAYING_VIDEO
+    }
+
+    private var currentState: AppState = AppState.INITIAL
+    private val stateHandler = Handler(Looper.getMainLooper())
+    private var ringingTimeoutRunnable: Runnable? = null
 
     private var mediaPlayer: MediaPlayer? = null
 
@@ -81,7 +93,7 @@ class MainActivity : ComponentActivity() {
             imageAnalyzer = ImageAnalysis.Builder()
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, FacesDetector(this, viewBinding))
+                    it.setAnalyzer(cameraExecutor, FacesDetector(this))
                 }
 
             try {
@@ -96,11 +108,69 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
+    private fun onFacesDetected(faceCount: Int) {
+        viewBinding.textView.text = faceCount.toString()
+
+        when (currentState) {
+            AppState.INITIAL -> {
+                if (faceCount == 1) {
+                    transitionToPhoneRinging()
+                }
+            }
+            AppState.PHONE_RINGING -> {
+                if (faceCount == 2) {
+                    transitionToPlayingVideo()
+                }
+            }
+            AppState.PLAYING_VIDEO -> {
+                // Left blank, as per request
+            }
+        }
+    }
+
+    private fun transitionToInitial() {
+        currentState = AppState.INITIAL
+        viewBinding.stateLabel.text = "Initial"
+        viewBinding.textView.text = "Waiting for face..."
+
+        mediaPlayer?.release()
+        mediaPlayer = null
+        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        ringingTimeoutRunnable = null
+    }
+
+    private fun transitionToPhoneRinging() {
+        currentState = AppState.PHONE_RINGING
+        viewBinding.stateLabel.text = "Phone Ringing"
+        viewBinding.textView.text = "Phone Ringing..."
+
+        mediaPlayer = MediaPlayer.create(this, R.raw.phone_ringing)
+        mediaPlayer?.start()
+
+        ringingTimeoutRunnable = Runnable { transitionToInitial() }
+        stateHandler.postDelayed(ringingTimeoutRunnable!!, 30000)
+    }
+
+    private fun transitionToPlayingVideo() {
+        currentState = AppState.PLAYING_VIDEO
+        viewBinding.stateLabel.text = "Playing Video"
+        viewBinding.textView.text = "Playing video"
+
+        mediaPlayer?.release()
+        mediaPlayer = null
+        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        ringingTimeoutRunnable = null
+
+        // TODO: Start playing a video here
+    }
+
+
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
         mediaPlayer?.release()
         mediaPlayer = null
+        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
     }
 
     companion object {
@@ -109,7 +179,6 @@ class MainActivity : ComponentActivity() {
 
     class FacesDetector(
         private val activity: MainActivity,
-        private val viewBinding: ActivityMainBinding,
     ) : ImageAnalysis.Analyzer {
         private val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
@@ -125,17 +194,10 @@ class MainActivity : ComponentActivity() {
 
                 detector.process(image)
                     .addOnSuccessListener {
-                        if (it.size == 1 && activity.mediaPlayer == null) {
-                            activity.mediaPlayer = MediaPlayer.create(activity, R.raw.phone_ringing)
-                            activity.mediaPlayer?.start()
-                        } else if (it.size == 2) {
-                            activity.mediaPlayer?.release()
-                            activity.mediaPlayer = null
-                        }
-                        viewBinding.textView.text = it.size.toString()
+                        activity.onFacesDetected(it.size)
                     }
                     .addOnFailureListener {
-                        viewBinding.textView.text = "Error"
+                        activity.viewBinding.textView.text = "Error"
                     }
                     .addOnCompleteListener {
                         imageProxy.close()
