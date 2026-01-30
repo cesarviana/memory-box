@@ -1,20 +1,22 @@
 package com.example.myapplication
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.example.myapplication.databinding.ActivityMainBinding
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.face.FaceDetection
+import com.google.mlkit.vision.face.FaceDetectorOptions
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -23,7 +25,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
 
-    private lateinit var imageCapture: ImageCapture
     private lateinit var imageAnalyzer: ImageAnalysis
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -74,12 +75,11 @@ class MainActivity : ComponentActivity() {
 
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
-                        imageAnalyzer = ImageAnalysis.Builder()
+            imageAnalyzer = ImageAnalysis.Builder()
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, PeopleDetector())
+                    it.setAnalyzer(cameraExecutor, FacesDetector(viewBinding))
                 }
-
 
             try {
                 cameraProvider.unbindAll()
@@ -102,9 +102,30 @@ class MainActivity : ComponentActivity() {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
-    class PeopleDetector() : ImageAnalysis.Analyzer {
-        override fun analyze(image: ImageProxy) {
-            TODO("Not yet implemented")
+    class FacesDetector(private val viewBinding: ActivityMainBinding) : ImageAnalysis.Analyzer {
+        private val options = FaceDetectorOptions.Builder()
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+            .build()
+
+        private val detector = FaceDetection.getClient(options)
+
+        @SuppressLint("UnsafeOptInUsageError")
+        override fun analyze(imageProxy: ImageProxy) {
+            val mediaImage = imageProxy.image
+            if (mediaImage != null) {
+                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+                detector.process(image)
+                    .addOnSuccessListener {
+                        viewBinding.textView.text = it.size.toString()
+                    }
+                    .addOnFailureListener {
+                        viewBinding.textView.text = "Error"
+                    }
+                    .addOnCompleteListener {
+                        imageProxy.close()
+                    }
+            }
         }
     }
 }
