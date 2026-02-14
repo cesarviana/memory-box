@@ -24,35 +24,38 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.face.FaceDetection
-import com.google.mlkit.vision.face.FaceDetectorOptions
-import com.google.mlkit.vision.pose.PoseDetection
-import com.google.mlkit.vision.pose.PoseLandmark
-import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlin.math.sqrt
 
 class MainActivity : ComponentActivity() {
 
-    private enum class AppState {
-        INITIAL,
-        PHONE_RINGING,
-        PLAYING_VIDEO
+    internal enum class AppState {
+        INITIAL {
+            override fun getImageProcessor(activity: MainActivity): ImageProcessor =
+                InitialImageProcessor(activity)
+        },
+        PHONE_RINGING {
+            override fun getImageProcessor(activity: MainActivity): ImageProcessor =
+                PhoneRingingImageProcessor(activity, activity.poseLandmarkView)
+        },
+        PLAYING_VIDEO {
+            override fun getImageProcessor(activity: MainActivity): ImageProcessor =
+                NoOpImageProcessor()
+        };
+
+        abstract fun getImageProcessor(activity: MainActivity): ImageProcessor
     }
 
-    private var currentState: AppState = AppState.INITIAL
+    internal var currentState: AppState = AppState.INITIAL
     private val stateHandler = Handler(Looper.getMainLooper())
     private var ringingTimeoutRunnable: Runnable? = null
 
     private var mediaPlayer: MediaPlayer? = null
 
-    private lateinit var viewBinding: ActivityMainBinding
+    internal lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageAnalyzer: ImageAnalysis
-    private lateinit var poseLandmarkView: PoseLandmarkView
+    internal lateinit var poseLandmarkView: PoseLandmarkView
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -116,7 +119,7 @@ class MainActivity : ComponentActivity() {
             imageAnalyzer = ImageAnalysis.Builder()
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, FacesDetector(this, poseLandmarkView))
+                    it.setAnalyzer(cameraExecutor, StatefulImageAnalyzer(this))
                 }
 
             try {
@@ -131,7 +134,7 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    private fun transitionToInitial() {
+    internal fun transitionToInitial() {
         currentState = AppState.INITIAL
         viewBinding.stateLabel.text = "Initial"
         viewBinding.textView.text = "Waiting for face..."
@@ -142,7 +145,7 @@ class MainActivity : ComponentActivity() {
         ringingTimeoutRunnable = null
     }
 
-    private fun transitionToPhoneRinging() {
+    internal fun transitionToPhoneRinging() {
         currentState = AppState.PHONE_RINGING
         viewBinding.stateLabel.text = "Phone Ringing"
         viewBinding.textView.text = "Phone Ringing..."
@@ -154,7 +157,7 @@ class MainActivity : ComponentActivity() {
         stateHandler.postDelayed(ringingTimeoutRunnable!!, 30000)
     }
 
-    private fun transitionToPlayingVideo() {
+    internal fun transitionToPlayingVideo() {
         currentState = AppState.PLAYING_VIDEO
         viewBinding.stateLabel.text = "Playing Video"
         viewBinding.textView.text = "Playing video"
@@ -180,33 +183,20 @@ class MainActivity : ComponentActivity() {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 
-    class FacesDetector(
+    class StatefulImageAnalyzer(
         private val activity: MainActivity,
-        private val poseLandmarkView: PoseLandmarkView
     ) : ImageAnalysis.Analyzer {
-        private val earIndexMinProximity = 60
         private var lastAnalyzedTimestamp = 0L
 
-        private val faceDetector = FaceDetection.getClient(
-            FaceDetectorOptions.Builder()
-                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-                .build()
-        )
+        @SuppressLint("UnsafeOptInUsageError")
+        @ExperimentalGetImage
+        private fun transformImageProxyToBitmap(imageProxy: ImageProxy): Bitmap? {
+            val bitmap = imageProxy.toBitmap() ?: return null
 
-        private val poseDetector = PoseDetection.getClient(
-            PoseDetectorOptions.Builder()
-                .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
-                .build()
-        )
-
-        private fun distance(p1: PoseLandmark, p2: PoseLandmark): Int {
-            val yDifference = abs(p1.position.y - p2.position.y)
-            val xDifference = abs(p1.position.x - p2.position.x)
-            return sqrt((yDifference * yDifference) + (xDifference * xDifference)).roundToInt()
-        }
-
-        private fun isNear(p1: PoseLandmark, p2: PoseLandmark): Boolean {
-            return distance(p1, p2) < earIndexMinProximity
+            val matrix = Matrix()
+            matrix.postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+            matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
+            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         }
 
         @SuppressLint("UnsafeOptInUsageError")
@@ -220,50 +210,16 @@ class MainActivity : ComponentActivity() {
             lastAnalyzedTimestamp = currentTimestamp
 
             @ExperimentalGetImage
-            val bitmap = imageProxy.toBitmap()
-
-            val matrix = Matrix()
-            matrix.postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-            matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
-            val flippedBitmap =
-                Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-
-            val image = InputImage.fromBitmap(flippedBitmap, 0)
-
-            if (activity.currentState == AppState.INITIAL) {
-                faceDetector.process(image)
-                    .addOnSuccessListener { faces ->
-                        if (faces.isNotEmpty()) {
-                            activity.transitionToPhoneRinging()
-                        }
-                    }
-                    .addOnFailureListener { e ->
-                        activity.viewBinding.textView.text = "Error"
-                    }
-                    .addOnCompleteListener {
-                        imageProxy.close()
-                    }
-            } else if (activity.currentState == AppState.PHONE_RINGING) {
-                poseDetector.process(image).addOnSuccessListener { pose ->
-                    if (pose.allPoseLandmarks.isNotEmpty()) {
-                        poseLandmarkView.setPose(pose, image.width, image.height)
-                        val leftEar = pose.getPoseLandmark(PoseLandmark.LEFT_EAR)!!
-                        val leftIndex = pose.getPoseLandmark(PoseLandmark.LEFT_INDEX)!!
-
-                        val rightEar = pose.getPoseLandmark(PoseLandmark.RIGHT_EAR)!!
-                        val rightIndex = pose.getPoseLandmark(PoseLandmark.RIGHT_INDEX)!!
-
-                        if (isNear(leftEar, leftIndex) || isNear(rightEar, rightIndex)) {
-                            activity.transitionToPlayingVideo()
-                        }
-                        activity.viewBinding.textView.text = "L ${distance(leftEar, leftIndex)} R ${distance(rightEar, rightIndex)}"
-                    }
-                }.addOnFailureListener {
-                    activity.viewBinding.textView.text = "Error on PHONE_RINGING"
-                }.addOnCompleteListener {
-                    imageProxy.close()
-                }
+            val transformedBitmap = transformImageProxyToBitmap(imageProxy)
+            if (transformedBitmap == null) {
+                imageProxy.close()
+                return
             }
+
+            val image = InputImage.fromBitmap(transformedBitmap, 0)
+
+            val processor = activity.currentState.getImageProcessor(activity)
+            processor.process(imageProxy, image)
         }
     }
 }
