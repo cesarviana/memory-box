@@ -39,7 +39,6 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
-
     private lateinit var imageAnalyzer: ImageAnalysis
 
     private val requestPermissionLauncher = registerForActivityResult(
@@ -117,11 +116,13 @@ class MainActivity : ComponentActivity() {
                     transitionToPhoneRinging()
                 }
             }
+
             AppState.PHONE_RINGING -> {
                 if (faceCount == 2) {
                     transitionToPlayingVideo()
                 }
             }
+
             AppState.PLAYING_VIDEO -> {
                 // Left blank, as per request
             }
@@ -188,21 +189,21 @@ class MainActivity : ComponentActivity() {
 
         @SuppressLint("UnsafeOptInUsageError")
         override fun analyze(imageProxy: ImageProxy) {
-            val mediaImage = imageProxy.image
-            if (mediaImage != null) {
-                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+            val mediaImage = imageProxy.image ?: return
 
-                detector.process(image)
-                    .addOnSuccessListener {
-                        activity.onFacesDetected(it.size)
-                    }
-                    .addOnFailureListener {
-                        activity.viewBinding.textView.text = "Error"
-                    }
-                    .addOnCompleteListener {
-                        imageProxy.close()
-                    }
-            }
+            val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+
+            detector.process(image)
+                .addOnSuccessListener {
+                    activity.onFacesDetected(it.size)
+                }
+                .addOnFailureListener {
+                    activity.viewBinding.textView.text = "Error"
+                }
+                .addOnCompleteListener {
+                    imageProxy.close()
+                }
+
         }
     }
 }
