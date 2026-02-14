@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
     implementation("com.google.mlkit:face-detection:16.1.7")
+    implementation("com.google.mlkit:pose-detection:18.0.0-beta5")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
