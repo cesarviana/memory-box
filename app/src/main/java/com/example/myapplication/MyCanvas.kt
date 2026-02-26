@@ -47,4 +47,9 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             canvas.drawRect(it.boundingBox, defaultPaint)
         }
     }
+
+    fun clearPerson() {
+        person = null
+        invalidate()
+    }
 }

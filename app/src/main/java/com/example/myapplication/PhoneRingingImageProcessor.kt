@@ -37,6 +37,7 @@ class PhoneRingingImageProcessor(
             .addOnSuccessListener { pose ->
                 if (pose.allPoseLandmarks.isEmpty()) {
                     Log.i("MY_APP", "empty pose")
+                    activity.onNoPose()
                     imageProxy.close()
                     return@addOnSuccessListener
                 }

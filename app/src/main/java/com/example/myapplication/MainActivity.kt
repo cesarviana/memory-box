@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
     internal var currentState: AppState = AppState.INITIAL
     private val stateHandler = Handler(Looper.getMainLooper())
     private var ringingTimeoutRunnable: Runnable? = null
+    private var isPersonDetected = false
 
     private var mediaPlayer: MediaPlayer? = null
 
@@ -140,8 +141,18 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun onPoseDetected(pose: Pose) {
+        if (currentState == AppState.PHONE_RINGING) {
+            isPersonDetected = true
+        }
         mapper.updateCanvasWidth(myCanvas.width)
         myCanvas.setPerson(mapper.mapPose(pose))
+    }
+
+    internal fun onNoPose() {
+        if (currentState == AppState.PHONE_RINGING) {
+            transitionToInitial()
+        }
+        myCanvas.clearPerson()
     }
 
     internal fun onObjectsDetected(objects: List<DetectedObject>) {
@@ -150,12 +161,22 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun transitionToInitial() {
+        isPersonDetected = false
         currentState = AppState.INITIAL
         viewBinding.stateLabel.text = "Initial"
         viewBinding.textView.text = "Waiting for face..."
 
+        stopRinging()
+
+        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        ringingTimeoutRunnable = null
+    }
+
+    private fun stopRinging() {
+        mediaPlayer?.stop()
         mediaPlayer?.release()
         mediaPlayer = null
+
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = null
     }
@@ -165,7 +186,17 @@ class MainActivity : ComponentActivity() {
         viewBinding.stateLabel.text = "Phone Ringing"
         viewBinding.textView.text = "Phone Ringing..."
 
+        isPersonDetected = false
+        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        ringingTimeoutRunnable = Runnable {
+            if (currentState == AppState.PHONE_RINGING && !isPersonDetected) {
+                transitionToInitial()
+            }
+        }
+        stateHandler.postDelayed(ringingTimeoutRunnable!!, RINGING_TIMEOUT_MS)
+
         mediaPlayer = MediaPlayer.create(this, R.raw.phone_ringing)
+        mediaPlayer?.isLooping = true
         mediaPlayer?.start()
     }
 
@@ -174,10 +205,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.stateLabel.text = "Playing Video"
         viewBinding.textView.text = "Playing video"
 
-        mediaPlayer?.release()
-        mediaPlayer = null
-        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
-        ringingTimeoutRunnable = null
+        stopRinging()
 
         // TODO: Start playing a video here
     }
@@ -186,13 +214,12 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
-        mediaPlayer?.release()
-        mediaPlayer = null
-        ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        stopRinging()
     }
 
     companion object {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+        private const val RINGING_TIMEOUT_MS = 60000L
     }
 
     class StatefulImageAnalyzer(
