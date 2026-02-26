@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Size
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -56,6 +57,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageAnalyzer: ImageAnalysis
     private lateinit var myCanvas: MyCanvas
+
+    private val imageSize = Size(480, 640)
+    private val mapper = PoseObjectMapper(imageSize)
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -136,11 +140,13 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun onPoseDetected(pose: Pose) {
-        myCanvas.setPose(pose)
+        mapper.updateCanvasWidth(myCanvas.width)
+        myCanvas.setPerson(mapper.mapPose(pose))
     }
 
     internal fun onObjectsDetected(objects: List<DetectedObject>) {
-        myCanvas.setObjects(objects)
+        mapper.updateCanvasWidth(myCanvas.width)
+        myCanvas.setObjects(mapper.mapObjects(objects))
     }
 
     internal fun transitionToInitial() {
