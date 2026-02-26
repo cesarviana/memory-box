@@ -41,7 +41,8 @@ class MainActivity : ComponentActivity() {
         },
         PLAYING_VIDEO {
             override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                NoOpImageProcessor()
+                PhoneRingingImageProcessor(activity)
+//                NoOpImageProcessor()
         };
 
         abstract fun getImageProcessor(activity: MainActivity): ImageProcessor
@@ -50,8 +51,6 @@ class MainActivity : ComponentActivity() {
     internal var currentState: AppState = AppState.INITIAL
     private val stateHandler = Handler(Looper.getMainLooper())
     private var ringingTimeoutRunnable: Runnable? = null
-    private var isPersonDetected = false
-
     private var mediaPlayer: MediaPlayer? = null
 
     internal lateinit var viewBinding: ActivityMainBinding
@@ -61,6 +60,8 @@ class MainActivity : ComponentActivity() {
 
     private val imageSize = Size(480, 640)
     private val mapper = PoseObjectMapper(imageSize)
+    private val sceneAnalyser = SceneAnalyser()
+    private val scene = Scene()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -141,27 +142,38 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun onPoseDetected(pose: Pose) {
+        val person = mapper.mapPose(pose)
+        scene.setPerson(person)
+        myCanvas.setScene(scene)
+
+        val poseState = sceneAnalyser.detectPose(scene)
+        myCanvas.setPoseState(poseState)
         if (currentState == AppState.PHONE_RINGING) {
-            isPersonDetected = true
+            if (poseState == PoseState.HOLDING_PHONE_NEAR_EAR) {
+                Log.i("MY_APP", "Person holding phone near ear detected!")
+                transitionToPlayingVideo()
+            }
         }
-        mapper.updateCanvasWidth(myCanvas.width)
-        myCanvas.setPerson(mapper.mapPose(pose))
     }
 
     internal fun onNoPose() {
+        scene.removePerson()
+        myCanvas.clearScene()
+
         if (currentState == AppState.PHONE_RINGING) {
             transitionToInitial()
         }
-        myCanvas.clearPerson()
     }
 
     internal fun onObjectsDetected(objects: List<DetectedObject>) {
         mapper.updateCanvasWidth(myCanvas.width)
-        myCanvas.setObjects(mapper.mapObjects(objects))
+        val mappedObjects = mapper.mapObjects(objects)
+        scene.setObjects(mappedObjects)
+        myCanvas.setScene(scene)
     }
 
     internal fun transitionToInitial() {
-        isPersonDetected = false
+        scene.removePerson()
         currentState = AppState.INITIAL
         viewBinding.stateLabel.text = "Initial"
         viewBinding.textView.text = "Waiting for face..."
@@ -186,10 +198,9 @@ class MainActivity : ComponentActivity() {
         viewBinding.stateLabel.text = "Phone Ringing"
         viewBinding.textView.text = "Phone Ringing..."
 
-        isPersonDetected = false
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = Runnable {
-            if (currentState == AppState.PHONE_RINGING && !isPersonDetected) {
+            if (currentState == AppState.PHONE_RINGING && scene.hasNoPerson()) {
                 transitionToInitial()
             }
         }

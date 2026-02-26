@@ -8,48 +8,88 @@ import android.util.AttributeSet
 import android.view.View
 
 class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
-    private var objects: List<Object> = emptyList()
-    private var person: Person? = null
+    private var scene: Scene? = null
+    private var poseState: PoseState? = null
+
     private val defaultPaint = Paint().apply {
         color = Color.RED
         strokeWidth = 5f
         style = Paint.Style.STROKE
+        textSize = 60f
     }
 
     private val bluePaint = Paint().apply {
         color = Color.BLUE
         strokeWidth = 5f
         style = Paint.Style.STROKE
-        textSize = 50f
     }
 
-    fun setPerson(person: Person) {
-        this.person = person
+    private val statePaint = Paint().apply {
+        color = Color.WHITE
+        strokeWidth = 2f
+        style = Paint.Style.FILL_AND_STROKE
+        textSize = 60f
+    }
+
+    private val stateBackgroundPaint = Paint().apply {
+        color = Color.BLACK
+        style = Paint.Style.FILL
+        alpha = 180
+    }
+
+    fun setScene(scene: Scene) {
+        this.scene = scene
         invalidate()
     }
 
-    fun setObjects(objects: List<Object>) {
-        this.objects = objects
+    fun setPoseState(poseState: PoseState?) {
+        this.poseState = poseState
         invalidate()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        person?.let { p ->
-            p.leftEar?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
-            p.rightEar?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
-            p.leftHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
-            p.rightHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
+        scene?.let { s ->
+            s.getPerson()?.let { p ->
+                p.leftEar?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
+                p.rightEar?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
+                p.leftHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
+                p.rightHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
+            }
+
+            s.getObjects().forEach {
+                canvas.drawRect(it.boundingBox, defaultPaint)
+                canvas.drawText(it.getSize().toString(), it.boundingBox.left.toFloat(), it.boundingBox.top.toFloat(), defaultPaint)
+            }
         }
 
-        objects.forEach {
-            canvas.drawRect(it.boundingBox, defaultPaint)
+        poseState?.let {
+            drawPoseState(canvas, it)
         }
     }
 
-    fun clearPerson() {
-        person = null
+    private fun drawPoseState(canvas: Canvas, state: PoseState) {
+        val text = state.toString()
+        val textBounds = android.graphics.Rect()
+        statePaint.getTextBounds(text, 0, text.length, textBounds)
+
+        val padding = 20f
+        val x = padding
+        val y = padding + textBounds.height()
+
+        val boxLeft = x - padding / 2
+        val boxTop = y - textBounds.height() - padding / 2
+        val boxRight = x + textBounds.width() + padding / 2
+        val boxBottom = y + padding / 2
+
+        canvas.drawRect(boxLeft, boxTop, boxRight, boxBottom, stateBackgroundPaint)
+        canvas.drawText(text, x, y, statePaint)
+    }
+
+    fun clearScene() {
+        scene = null
+        poseState = null
         invalidate()
     }
 }
