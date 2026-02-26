@@ -24,24 +24,19 @@ class SceneAnalyser(
     }
 
     fun detectPose(scene: Scene): PoseState {
-        if (scene.hasNoPerson()) {
+        if (scene.person == null) {
             return PoseState.NO_PERSON
         }
 
-        val person = scene.getPerson()!!
-
-        // First check if person is holding an object near their ear
-        if (isPersonHoldingPhoneNearEar(person, scene.getObjects())) {
+        if (isPersonHoldingPhoneNearEar(scene.person, scene.objects)) {
             return PoseState.HOLDING_PHONE_NEAR_EAR
         }
 
-        // Otherwise check if hand is near ear
-        if (hasHandNearEar(person)) {
+        if (hasHandNearEar(scene.person)) {
             return PoseState.HAND_NEAR_EAR
         }
 
-        // If we have valid landmarks but no hand near ear
-        if (person.leftEar != null || person.rightEar != null) {
+        if (scene.person.leftEar != null || scene.person.rightEar != null) {
             return PoseState.HAND_AWAY_FROM_EAR
         }
 
@@ -53,7 +48,6 @@ class SceneAnalyser(
             it.getSize() in PHONE_EXPECTED_SIZE_RANGE
         }
 
-        // Check if any object is near left ear and left hand
         if (person.leftEar != null && person.leftHand != null) {
             for (obj in objects) {
                 val objCenter = getCenterPoint(obj.boundingBox)
@@ -66,7 +60,6 @@ class SceneAnalyser(
             }
         }
 
-        // Check if any object is near right ear and right hand
         if (person.rightEar != null && person.rightHand != null) {
             for (obj in possiblePhones) {
                 val objCenter = getCenterPoint(obj.boundingBox)

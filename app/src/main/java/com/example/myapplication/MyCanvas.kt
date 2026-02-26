@@ -51,14 +51,14 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         super.onDraw(canvas)
 
         scene?.let { s ->
-            s.getPerson()?.let { p ->
+            s.person?.let { p ->
                 p.leftEar?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
                 p.rightEar?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
                 p.leftHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
                 p.rightHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
             }
 
-            s.getObjects().forEach {
+            s.objects.forEach {
                 canvas.drawRect(it.boundingBox, defaultPaint)
                 canvas.drawText(it.getSize().toString(), it.boundingBox.left.toFloat(), it.boundingBox.top.toFloat(), defaultPaint)
             }

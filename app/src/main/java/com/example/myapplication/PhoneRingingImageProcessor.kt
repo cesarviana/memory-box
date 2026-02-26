@@ -1,11 +1,12 @@
 package com.example.myapplication
 
 import android.util.Log
+import android.util.Size
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.objects.DetectedObject
 import com.google.mlkit.vision.objects.ObjectDetection
 import com.google.mlkit.vision.objects.defaults.ObjectDetectorOptions
-import com.google.mlkit.vision.pose.Pose
 import com.google.mlkit.vision.pose.PoseDetection
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
 
@@ -25,26 +26,36 @@ class PhoneRingingImageProcessor(
             .build()
     )
 
-
     override fun process(imageProxy: ImageProxy, image: InputImage) {
+
         poseDetector.process(image)
             .addOnSuccessListener { pose ->
+                val imageSize = Size(image.height, image.width) // image is rotated
+                val canvasSize = Size(activity.myCanvas.width, activity.myCanvas.height)
+                val mapper = PoseObjectMapper(imageSize, canvasSize)
                 if (pose.allPoseLandmarks.isEmpty()) {
                     Log.i("MY_APP", "empty pose")
-                    activity.onNoPose()
+                    val emptyScene = Scene(person = null, objects = emptyList())
+                    activity.onSceneUpdated(emptyScene)
                     imageProxy.close()
                     return@addOnSuccessListener
                 }
 
-                activity.onPoseDetected(pose)
+                var currentObjects = emptyList<DetectedObject>()
+
                 objectDetector.process(image)
                     .addOnSuccessListener { objects ->
-                        activity.onObjectsDetected(objects)
+                        currentObjects = objects
                     }
                     .addOnFailureListener {
                         Log.e("MY_APP", "object detector failure", it)
                     }
                     .addOnCompleteListener {
+                        val person = mapper.mapPose(pose)
+                        val mappedObjects = mapper.mapObjects(currentObjects)
+                        val scene = Scene(person = person, objects = mappedObjects)
+                        activity.onSceneUpdated(scene)
+
                         imageProxy.close()
                     }
             }
@@ -53,3 +64,5 @@ class PhoneRingingImageProcessor(
             }
     }
 }
+
+

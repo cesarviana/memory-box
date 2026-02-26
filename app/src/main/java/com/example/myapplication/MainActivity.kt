@@ -23,8 +23,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.objects.DetectedObject
-import com.google.mlkit.vision.pose.Pose
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -54,14 +52,13 @@ class MainActivity : ComponentActivity() {
     private var mediaPlayer: MediaPlayer? = null
 
     internal lateinit var viewBinding: ActivityMainBinding
+    internal lateinit var myCanvas: MyCanvas
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageAnalyzer: ImageAnalysis
-    private lateinit var myCanvas: MyCanvas
 
-    private val imageSize = Size(480, 640)
-    private val mapper = PoseObjectMapper(imageSize)
     private val sceneAnalyser = SceneAnalyser()
-    private val scene = Scene()
+    private val sceneSequenceAnalyser = SceneSequenceAnalyser()
+    private val sequence = Sequence()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -141,39 +138,33 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    internal fun onPoseDetected(pose: Pose) {
-        val person = mapper.mapPose(pose)
-        scene.setPerson(person)
-        myCanvas.setScene(scene)
+    internal fun onSceneUpdated(updatedScene: Scene) {
+        sequence.add(updatedScene)
+        val currentScene = sequence.getLatestScene() ?: return
 
-        val poseState = sceneAnalyser.detectPose(scene)
+        myCanvas.setScene(currentScene)
+
+        if (currentScene.hasNoPerson()) {
+            if (currentState == AppState.PHONE_RINGING) {
+                transitionToInitial()
+            }
+            return
+        }
+
+        val poseState = sceneAnalyser.detectPose(currentScene)
         myCanvas.setPoseState(poseState)
+
         if (currentState == AppState.PHONE_RINGING) {
-            if (poseState == PoseState.HOLDING_PHONE_NEAR_EAR) {
+            if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
                 Log.i("MY_APP", "Person holding phone near ear detected!")
                 transitionToPlayingVideo()
             }
         }
     }
 
-    internal fun onNoPose() {
-        scene.removePerson()
-        myCanvas.clearScene()
-
-        if (currentState == AppState.PHONE_RINGING) {
-            transitionToInitial()
-        }
-    }
-
-    internal fun onObjectsDetected(objects: List<DetectedObject>) {
-        mapper.updateCanvasWidth(myCanvas.width)
-        val mappedObjects = mapper.mapObjects(objects)
-        scene.setObjects(mappedObjects)
-        myCanvas.setScene(scene)
-    }
 
     internal fun transitionToInitial() {
-        scene.removePerson()
+        sequence.clear()
         currentState = AppState.INITIAL
         viewBinding.stateLabel.text = "Initial"
         viewBinding.textView.text = "Waiting for face..."
@@ -200,7 +191,7 @@ class MainActivity : ComponentActivity() {
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = Runnable {
-            if (currentState == AppState.PHONE_RINGING && scene.hasNoPerson()) {
+            if (currentState == AppState.PHONE_RINGING && sequence.getLatestScene()?.hasNoPerson() != false) {
                 transitionToInitial()
             }
         }
