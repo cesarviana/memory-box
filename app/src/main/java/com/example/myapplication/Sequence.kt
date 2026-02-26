@@ -2,7 +2,7 @@ package com.example.myapplication
 
 class Sequence {
     val scenes = mutableListOf<Scene>()
-    private val maxSize = 10
+    private val maxSize = 5
 
     fun add(scene: Scene) {
         if (scenes.size >= maxSize) {

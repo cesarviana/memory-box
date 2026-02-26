@@ -56,7 +56,6 @@ class MainActivity : ComponentActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageAnalyzer: ImageAnalysis
 
-    private val sceneAnalyser = SceneAnalyser()
     private val sceneSequenceAnalyser = SceneSequenceAnalyser()
     private val sequence = Sequence()
 
@@ -115,8 +114,8 @@ class MainActivity : ComponentActivity() {
 
             val preview = Preview.Builder()
                 .build().also {
-                it.surfaceProvider = viewBinding.viewFinder.surfaceProvider
-            }
+                    it.surfaceProvider = viewBinding.viewFinder.surfaceProvider
+                }
 
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
@@ -140,26 +139,23 @@ class MainActivity : ComponentActivity() {
 
     internal fun onSceneUpdated(updatedScene: Scene) {
         sequence.add(updatedScene)
-        val currentScene = sequence.getLatestScene() ?: return
+        myCanvas.setScene(updatedScene)
 
-        myCanvas.setScene(currentScene)
-
-        if (currentScene.hasNoPerson()) {
-            if (currentState == AppState.PHONE_RINGING) {
+        if (updatedScene.hasNoPerson()) {
+//            if (currentState == AppState.PHONE_RINGING) {
                 transitionToInitial()
-            }
+//            }
             return
         }
 
-        val poseState = sceneAnalyser.detectPose(currentScene)
+        val poseState = sceneSequenceAnalyser.getLatestPose(sequence)
         myCanvas.setPoseState(poseState)
 
-        if (currentState == AppState.PHONE_RINGING) {
-            if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
-                Log.i("MY_APP", "Person holding phone near ear detected!")
-                transitionToPlayingVideo()
-            }
+        if (currentState == AppState.PHONE_RINGING && sceneSequenceAnalyser.isHoldingPhone(sequence)) {
+            Log.i("MY_APP", "Person holding phone near ear detected!")
+            transitionToPlayingVideo()
         }
+
     }
 
 
@@ -191,7 +187,9 @@ class MainActivity : ComponentActivity() {
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = Runnable {
-            if (currentState == AppState.PHONE_RINGING && sequence.getLatestScene()?.hasNoPerson() != false) {
+            if (currentState == AppState.PHONE_RINGING && sequence.getLatestScene()
+                    ?.hasNoPerson() != false
+            ) {
                 transitionToInitial()
             }
         }

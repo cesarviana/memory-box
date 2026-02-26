@@ -11,13 +11,6 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var scene: Scene? = null
     private var poseState: PoseState? = null
 
-    private val defaultPaint = Paint().apply {
-        color = Color.RED
-        strokeWidth = 5f
-        style = Paint.Style.STROKE
-        textSize = 60f
-    }
-
     private val bluePaint = Paint().apply {
         color = Color.BLUE
         strokeWidth = 5f
@@ -57,11 +50,6 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 p.leftHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
                 p.rightHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
             }
-
-            s.objects.forEach {
-                canvas.drawRect(it.boundingBox, defaultPaint)
-                canvas.drawText(it.getSize().toString(), it.boundingBox.left.toFloat(), it.boundingBox.top.toFloat(), defaultPaint)
-            }
         }
 
         poseState?.let {
@@ -85,11 +73,5 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
         canvas.drawRect(boxLeft, boxTop, boxRight, boxBottom, stateBackgroundPaint)
         canvas.drawText(text, x, y, statePaint)
-    }
-
-    fun clearScene() {
-        scene = null
-        poseState = null
-        invalidate()
     }
 }

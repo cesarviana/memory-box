@@ -7,7 +7,6 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 enum class PoseState {
-    HOLDING_PHONE_NEAR_EAR,
     HAND_NEAR_EAR,
     HAND_AWAY_FROM_EAR,
     NO_PERSON,
@@ -15,21 +14,12 @@ enum class PoseState {
 }
 
 class SceneAnalyser(
-    private val earHandMinProximity: Int = 300,
-    private val earObjectMaxProximity: Int = 150
+    private val earHandMinProximity: Int = 300
 ) {
-
-    companion object {
-        private val PHONE_EXPECTED_SIZE_RANGE = Range(300, 600)
-    }
 
     fun detectPose(scene: Scene): PoseState {
         if (scene.person == null) {
             return PoseState.NO_PERSON
-        }
-
-        if (isPersonHoldingPhoneNearEar(scene.person, scene.objects)) {
-            return PoseState.HOLDING_PHONE_NEAR_EAR
         }
 
         if (hasHandNearEar(scene.person)) {
@@ -41,38 +31,6 @@ class SceneAnalyser(
         }
 
         return PoseState.UNKNOWN
-    }
-
-    private fun isPersonHoldingPhoneNearEar(person: Person, objects: List<Object>): Boolean {
-        val possiblePhones = objects.filter {
-            it.getSize() in PHONE_EXPECTED_SIZE_RANGE
-        }
-
-        if (person.leftEar != null && person.leftHand != null) {
-            for (obj in objects) {
-                val objCenter = getCenterPoint(obj.boundingBox)
-                val distanceToEar = distance(person.leftEar, objCenter)
-                val distanceToHand = distance(person.leftHand, objCenter)
-
-                if (distanceToEar < earObjectMaxProximity && distanceToHand < earHandMinProximity) {
-                    return true
-                }
-            }
-        }
-
-        if (person.rightEar != null && person.rightHand != null) {
-            for (obj in possiblePhones) {
-                val objCenter = getCenterPoint(obj.boundingBox)
-                val distanceToEar = distance(person.rightEar, objCenter)
-                val distanceToHand = distance(person.rightHand, objCenter)
-
-                if (distanceToEar < earObjectMaxProximity && distanceToHand < earHandMinProximity) {
-                    return true
-                }
-            }
-        }
-
-        return false
     }
 
     private fun hasHandNearEar(person: Person): Boolean {
@@ -89,13 +47,6 @@ class SceneAnalyser(
         }
 
         return false
-    }
-
-    private fun getCenterPoint(rect: android.graphics.Rect): PointF {
-        return PointF(
-            rect.exactCenterX(),
-            rect.exactCenterY()
-        )
     }
 
     private fun distance(p1: PointF, p2: PointF): Int {

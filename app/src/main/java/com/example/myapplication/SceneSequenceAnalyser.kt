@@ -20,5 +20,10 @@ class SceneSequenceAnalyser(
         val percentage = scenesWithHandNearEar.toFloat() / scenes.size
         return percentage >= requiredThreshold
     }
+
+    fun getLatestPose(sequence: Sequence): PoseState? {
+        val latestScene = sequence.getLatestScene() ?: return null
+        return sceneAnalyser.detectPose(latestScene)
+    }
 }
 
