@@ -14,11 +14,12 @@
             app:layout_constraintHorizontal_bias="1.0"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.0">
+            app:layout_constraintVertical_bias="0.0"
+            app:scaleType="fitStart">
 
         </androidx.camera.view.PreviewView>
 
-        <com.example.myapplication.PoseLandmarkView
+        <com.example.myapplication.MyCanvas
             android:id="@+id/pose_landmark_view"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
