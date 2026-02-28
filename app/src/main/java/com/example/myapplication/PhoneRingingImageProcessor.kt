@@ -34,7 +34,7 @@ class PhoneRingingImageProcessor(
                 activity.onSceneUpdated(scene)
             }
             .addOnFailureListener {
-                activity.viewBinding.textView.text = "Error on PHONE_RINGING"
+                activity.viewBinding.stateLabel.text = "Error on PHONE_RINGING"
             }.addOnCompleteListener {
                 imageProxy.close()
             }

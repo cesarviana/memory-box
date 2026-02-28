@@ -21,7 +21,7 @@ class InitialImageProcessor(private val activity: MainActivity) : ImageProcessor
                 }
             }
             .addOnFailureListener { e ->
-                activity.viewBinding.textView.text = "Error"
+                activity.viewBinding.stateLabel.text = "Error"
             }
             .addOnCompleteListener {
                 imageProxy.close()

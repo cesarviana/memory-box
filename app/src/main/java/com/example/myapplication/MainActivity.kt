@@ -15,7 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -79,6 +78,13 @@ class MainActivity : ComponentActivity() {
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
         viewBinding.videoView.visibility = android.view.View.GONE
+
+        // Initialize the slideshow with images
+        viewBinding.imageSlideshow.setImagesFromResources(
+            listOf(R.raw.aline_cesar_bw, R.raw.aline_cesar_bw_2),
+            intervalMs = 120_000L
+        )
+
         hideSystemUI()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -111,10 +117,10 @@ class MainActivity : ComponentActivity() {
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
 
-            val preview = Preview.Builder()
-                .build().also {
-                    it.surfaceProvider = viewBinding.viewFinder.surfaceProvider
-                }
+//            val preview = Preview.Builder()
+//                .build().also {
+//                    it.surfaceProvider = viewBinding.viewFinder.surfaceProvider
+//                }
 
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
@@ -127,7 +133,7 @@ class MainActivity : ComponentActivity() {
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
-                    this, cameraSelector, preview, imageAnalyzer
+                    this, cameraSelector,  imageAnalyzer
                 )
             } catch (exc: Exception) {
                 Log.e("MY_APP", exc.message, exc)
@@ -168,6 +174,14 @@ class MainActivity : ComponentActivity() {
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = null
+
+        // Show slideshow
+        viewBinding.imageSlideshow.visibility = android.view.View.VISIBLE
+        viewBinding.myCanvas.visibility = android.view.View.GONE
+        viewBinding.imageSlideshow.setImagesFromResources(
+            listOf(R.raw.aline_cesar_bw, R.raw.aline_cesar_bw_2),
+            intervalMs = 4000L
+        )
     }
 
     private fun stopVideo() {
@@ -191,6 +205,7 @@ class MainActivity : ComponentActivity() {
     internal fun transitionToPhoneRinging() {
         currentState = AppState.PHONE_RINGING
         viewBinding.stateLabel.text = "Phone Ringing"
+        viewBinding.imageSlideshow.visibility = android.view.View.GONE
         viewBinding.myCanvas.visibility = android.view.View.VISIBLE
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
@@ -213,6 +228,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.stateLabel.text = "Playing Video"
 
         stopRinging()
+        viewBinding.imageSlideshow.visibility = android.view.View.GONE
         viewBinding.myCanvas.visibility = android.view.View.GONE
 
         playVideo()
@@ -244,11 +260,14 @@ class MainActivity : ComponentActivity() {
         cameraExecutor.shutdown()
         stopRinging()
         stopVideo()
+        viewBinding.imageSlideshow.stopAutoPlay()
     }
 
     internal fun getCanvasSize(): Size {
         return Size(viewBinding.myCanvas.width, viewBinding.myCanvas.height)
     }
+
+    internal fun getMyCanvas() = viewBinding.myCanvas
 
     companion object {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
