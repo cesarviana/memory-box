@@ -71,8 +71,16 @@ class VintageCountdownView @JvmOverloads constructor(
             countdownSeconds--
             playBeep()
             if (countdownSeconds <= 0) {
-                visibility = GONE
-                onCountdownFinished?.invoke()
+                // Apply fade-out animation before hiding
+                val fadeOutAnimation = ObjectAnimator.ofFloat(this, "alpha", 1f, 0f)
+                fadeOutAnimation.duration = 1000 // 500ms fade-out
+                fadeOutAnimation.addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        visibility = GONE
+                        onCountdownFinished?.invoke()
+                    }
+                })
+                fadeOutAnimation.start()
             } else {
                 updateDisplay()
             }
