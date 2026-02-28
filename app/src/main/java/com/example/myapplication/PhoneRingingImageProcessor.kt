@@ -20,7 +20,7 @@ class PhoneRingingImageProcessor(
         poseDetector.process(image)
             .addOnSuccessListener { pose ->
                 val imageSize = Size(image.height, image.width) // image is rotated
-                val canvasSize = Size(activity.myCanvas.width, activity.myCanvas.height)
+                val canvasSize = activity.getCanvasSize()
                 val mapper = PoseObjectMapper(imageSize, canvasSize)
                 if (pose.allPoseLandmarks.isEmpty()) {
                     val emptyScene = Scene(person = null)

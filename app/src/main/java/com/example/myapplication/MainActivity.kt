@@ -18,6 +18,7 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -39,8 +40,7 @@ class MainActivity : ComponentActivity() {
         },
         PLAYING_VIDEO {
             override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                PhoneRingingImageProcessor(activity)
-//                NoOpImageProcessor()
+                NoOpImageProcessor()
         };
 
         abstract fun getImageProcessor(activity: MainActivity): ImageProcessor
@@ -52,7 +52,6 @@ class MainActivity : ComponentActivity() {
     private var mediaPlayer: MediaPlayer? = null
 
     internal lateinit var viewBinding: ActivityMainBinding
-    internal lateinit var myCanvas: MyCanvas
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageAnalyzer: ImageAnalysis
 
@@ -79,7 +78,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
-        myCanvas = viewBinding.poseLandmarkView
+        viewBinding.videoView.visibility = android.view.View.GONE
         hideSystemUI()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -139,17 +138,17 @@ class MainActivity : ComponentActivity() {
 
     internal fun onSceneUpdated(updatedScene: Scene) {
         sequence.add(updatedScene)
-        myCanvas.setScene(updatedScene)
+        viewBinding.myCanvas.setScene(updatedScene)
 
         if (updatedScene.hasNoPerson()) {
 //            if (currentState == AppState.PHONE_RINGING) {
-                transitionToInitial()
+            transitionToInitial()
 //            }
             return
         }
 
         val poseState = sceneSequenceAnalyser.getLatestPose(sequence)
-        myCanvas.setPoseState(poseState)
+        viewBinding.myCanvas.setPoseState(poseState)
 
         if (currentState == AppState.PHONE_RINGING && sceneSequenceAnalyser.isHoldingPhone(sequence)) {
             Log.i("MY_APP", "Person holding phone near ear detected!")
@@ -166,9 +165,19 @@ class MainActivity : ComponentActivity() {
         viewBinding.textView.text = "Waiting for face..."
 
         stopRinging()
+        stopVideo()
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = null
+    }
+
+    private fun stopVideo() {
+        viewBinding.videoView.let {
+            if (it.isPlaying) {
+                it.stopPlayback()
+            }
+            it.visibility = android.view.View.GONE
+        }
     }
 
     private fun stopRinging() {
@@ -184,6 +193,7 @@ class MainActivity : ComponentActivity() {
         currentState = AppState.PHONE_RINGING
         viewBinding.stateLabel.text = "Phone Ringing"
         viewBinding.textView.text = "Phone Ringing..."
+        viewBinding.myCanvas.visibility = android.view.View.VISIBLE
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = Runnable {
@@ -206,8 +216,30 @@ class MainActivity : ComponentActivity() {
         viewBinding.textView.text = "Playing video"
 
         stopRinging()
+        viewBinding.myCanvas.visibility = android.view.View.GONE
 
-        // TODO: Start playing a video here
+        playVideo()
+    }
+
+    private fun playVideo() {
+        try {
+            val videoUri = "android.resource://${packageName}/${R.raw.cabine}"
+
+            viewBinding.videoView.apply {
+                setVideoURI(videoUri.toUri())
+                setOnPreparedListener { mediaPlayer ->
+                    mediaPlayer.isLooping = false
+                    start()
+                }
+                setOnCompletionListener {
+                    transitionToInitial()
+                }
+                visibility = android.view.View.VISIBLE
+            }
+        } catch (e: Exception) {
+            Log.e("MY_APP", "Error playing video", e)
+            viewBinding.textView.text = "Error playing video"
+        }
     }
 
 
@@ -215,6 +247,11 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         cameraExecutor.shutdown()
         stopRinging()
+        stopVideo()
+    }
+
+    internal fun getCanvasSize(): Size {
+        return Size(viewBinding.myCanvas.width, viewBinding.myCanvas.height)
     }
 
     companion object {
