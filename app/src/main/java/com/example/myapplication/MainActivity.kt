@@ -162,7 +162,6 @@ class MainActivity : ComponentActivity() {
         sequence.clear()
         currentState = AppState.INITIAL
         viewBinding.stateLabel.text = "Initial"
-        viewBinding.textView.text = "Waiting for face..."
 
         stopRinging()
         stopVideo()
@@ -192,7 +191,6 @@ class MainActivity : ComponentActivity() {
     internal fun transitionToPhoneRinging() {
         currentState = AppState.PHONE_RINGING
         viewBinding.stateLabel.text = "Phone Ringing"
-        viewBinding.textView.text = "Phone Ringing..."
         viewBinding.myCanvas.visibility = android.view.View.VISIBLE
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
@@ -213,7 +211,6 @@ class MainActivity : ComponentActivity() {
     internal fun transitionToPlayingVideo() {
         currentState = AppState.PLAYING_VIDEO
         viewBinding.stateLabel.text = "Playing Video"
-        viewBinding.textView.text = "Playing video"
 
         stopRinging()
         viewBinding.myCanvas.visibility = android.view.View.GONE
@@ -238,7 +235,6 @@ class MainActivity : ComponentActivity() {
             }
         } catch (e: Exception) {
             Log.e("MY_APP", "Error playing video", e)
-            viewBinding.textView.text = "Error playing video"
         }
     }
 
