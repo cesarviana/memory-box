@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -29,27 +30,21 @@ import java.util.concurrent.Executors
 class MainActivity : ComponentActivity() {
 
     internal enum class AppState {
-        INITIAL {
-            override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                InitialImageProcessor(activity)
-        },
-        PHONE_RINGING {
-            override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                ImageToSceneProcessor(activity.getCanvasSize()).onSceneUpdated { scene ->
-                    activity.onSceneUpdated(scene)
-                }
-        },
-        PLAYING_VIDEO {
-            override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                NoOpImageProcessor()
-        };
+        INITIAL,
+        PHONE_RINGING,
+        PLAYING_VIDEO
+    }
 
-        abstract fun getImageProcessor(activity: MainActivity): ImageProcessor
+    companion object {
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+        private const val RINGING_TIMEOUT_MS = 30_000L
+        private const val PERSON_DETECTION_TIMEOUT_MS = 30_000L
     }
 
     internal var currentState: AppState = AppState.INITIAL
     private val stateHandler = Handler(Looper.getMainLooper())
     private var ringingTimeoutRunnable: Runnable? = null
+    private var personDetectionTimeoutRunnable: Runnable? = null
     private var mediaPlayer: MediaPlayer? = null
 
     internal lateinit var viewBinding: ActivityMainBinding
@@ -58,6 +53,25 @@ class MainActivity : ComponentActivity() {
 
     private val sceneSequenceAnalyser = SceneSequenceAnalyser()
     private val sequence = Sequence()
+
+    private lateinit var initialProcessor: ImageToSceneProcessor
+    private lateinit var phoneRingingProcessor: ImageToSceneProcessor
+    private val playingVideoProcessor = NoOpImageProcessor()
+
+    private fun initializeProcessors() {
+        initialProcessor = ImageToSceneProcessor(::getCanvasSize).onSceneUpdated { scene ->
+            onInitialSceneUpdated(scene)
+        }
+        phoneRingingProcessor = ImageToSceneProcessor(::getCanvasSize).onSceneUpdated { scene ->
+            onSceneUpdated(scene)
+        }
+    }
+
+    internal fun getCurrentImageProcessor(): ImageProcessor = when (currentState) {
+        AppState.INITIAL -> initialProcessor
+        AppState.PHONE_RINGING -> phoneRingingProcessor
+        AppState.PLAYING_VIDEO -> playingVideoProcessor
+    }
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -87,14 +101,19 @@ class MainActivity : ComponentActivity() {
             intervalMs = 120_000L
         )
 
+        initializeProcessors()
+
         hideSystemUI()
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
+        // Wait for the layout to be complete before starting camera
+        viewBinding.root.post {
+            if (allPermissionsGranted()) {
+                startCamera()
+            } else {
+                requestPermissionLauncher.launch(REQUIRED_PERMISSIONS)
+            }
         }
     }
 
@@ -135,13 +154,42 @@ class MainActivity : ComponentActivity() {
             try {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
-                    this, cameraSelector,  imageAnalyzer
+                    this, cameraSelector, /*preview,*/  imageAnalyzer
                 )
             } catch (exc: Exception) {
                 Log.e("MY_APP", exc.message, exc)
             }
 
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    internal fun onInitialSceneUpdated(scene: Scene) {
+        sequence.add(scene)
+        viewBinding.myCanvas.setScene(scene)
+
+        if (scene.hasNoPerson()) {
+            Log.i("MY_APP", "No person in initial state")
+            personDetectionTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+            personDetectionTimeoutRunnable = null
+            return
+        }
+
+        if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
+            Log.i("MY_APP", "Person holding phone near ear detected in initial state!")
+            transitionToPlayingVideo()
+            return
+        }
+
+        if (personDetectionTimeoutRunnable == null) {
+            Log.i("MY_APP", "Starting person detection timeout")
+            personDetectionTimeoutRunnable = Runnable {
+                if (currentState == AppState.INITIAL && sequence.getLatestScene()?.hasPerson() == true) {
+                    Log.i("MY_APP", "Person still detected after 30 seconds, transitioning to phone ringing")
+                    transitionToPhoneRinging()
+                }
+            }
+            stateHandler.postDelayed(personDetectionTimeoutRunnable!!, PERSON_DETECTION_TIMEOUT_MS)
+        }
     }
 
     internal fun onSceneUpdated(scene: Scene) {
@@ -176,9 +224,11 @@ class MainActivity : ComponentActivity() {
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = null
 
+        personDetectionTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        personDetectionTimeoutRunnable = null
+
         // Show slideshow
         viewBinding.imageSlideshow.visibility = android.view.View.VISIBLE
-        viewBinding.myCanvas.visibility = android.view.View.GONE
     }
 
     private fun stopVideo() {
@@ -202,8 +252,9 @@ class MainActivity : ComponentActivity() {
     internal fun transitionToPhoneRinging() {
         currentState = AppState.PHONE_RINGING
         viewBinding.stateLabel.text = "Phone Ringing"
-        viewBinding.imageSlideshow.visibility = android.view.View.GONE
-//        viewBinding.myCanvas.visibility = android.view.View.VISIBLE
+
+        personDetectionTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
+        personDetectionTimeoutRunnable = null
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = Runnable {
@@ -261,12 +312,9 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun getCanvasSize(): Size {
-        return Size(viewBinding.myCanvas.width, viewBinding.myCanvas.height)
-    }
-
-    companion object {
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-        private const val RINGING_TIMEOUT_MS = 60000L
+        val width = viewBinding.myCanvas.width.takeIf { it > 0 } ?: viewBinding.root.width
+        val height = viewBinding.myCanvas.height.takeIf { it > 0 } ?: viewBinding.root.height
+        return Size(width, height)
     }
 
     class StatefulImageAnalyzer(
@@ -289,14 +337,13 @@ class MainActivity : ComponentActivity() {
                 imageProxy.close()
                 return
             }
-            Log.i("MY_APP", "Image size: ${imageProxy.width} x ${imageProxy.height}")
 
             val inputImage = InputImage.fromMediaImage(
                 mediaImage,
                 imageProxy.imageInfo.rotationDegrees
             )
 
-            val processor = activity.currentState.getImageProcessor(activity)
+            val processor = activity.getCurrentImageProcessor()
 
             processor.process(imageProxy, inputImage)
         }

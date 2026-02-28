@@ -5,10 +5,14 @@ class SceneSequenceAnalyser(
     private val requiredThreshold: Float = 0.7f
 ) {
 
+    companion object {
+        private const val MINIMUM_IMAGES = 5
+    }
+
     fun isHoldingPhone(sequence: Sequence): Boolean {
         val scenes = sequence.scenes
 
-        if (scenes.isEmpty()) {
+        if (scenes.size < MINIMUM_IMAGES) {
             return false
         }
 

@@ -1,5 +1,6 @@
 package com.example.myapplication
 
+import android.util.Log
 import android.util.Size
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
@@ -7,7 +8,7 @@ import com.google.mlkit.vision.pose.PoseDetection
 import com.google.mlkit.vision.pose.defaults.PoseDetectorOptions
 
 class ImageToSceneProcessor(
-    private val canvasSize: Size,
+    private val getCanvasSize: () -> Size,
 ) : ImageProcessor {
 
     private var sceneUpdateListener: ((Scene) -> Unit)? = null
@@ -26,6 +27,7 @@ class ImageToSceneProcessor(
         poseDetector.process(image)
             .addOnSuccessListener { pose ->
                 val imageSize = Size(image.height, image.width) // image is rotated
+                val canvasSize = getCanvasSize()
                 val mapper = PoseObjectMapper(imageSize, canvasSize)
                 if (pose.allPoseLandmarks.isEmpty()) {
                     val emptyScene = Scene(person = null)
