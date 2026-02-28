@@ -26,7 +26,7 @@ import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), SceneUpdateListener {
 
     internal enum class AppState {
         INITIAL {
@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
         },
         PHONE_RINGING {
             override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                PhoneRingingImageProcessor(activity)
+                ImageToSceneProcessor(activity.getCanvasSize()).onSceneUpdated(activity)
         },
         PLAYING_VIDEO {
             override fun getImageProcessor(activity: MainActivity): ImageProcessor =
@@ -142,11 +142,11 @@ class MainActivity : ComponentActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    internal fun onSceneUpdated(updatedScene: Scene) {
-        sequence.add(updatedScene)
-        viewBinding.myCanvas.setScene(updatedScene)
+    override fun onSceneUpdated(scene: Scene) {
+        sequence.add(scene)
+        viewBinding.myCanvas.setScene(scene)
 
-        if (updatedScene.hasNoPerson()) {
+        if (scene.hasNoPerson()) {
 //            if (currentState == AppState.PHONE_RINGING) {
             transitionToInitial()
 //            }
