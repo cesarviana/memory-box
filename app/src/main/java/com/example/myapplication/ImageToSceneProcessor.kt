@@ -10,13 +10,13 @@ class ImageToSceneProcessor(
     private val canvasSize: Size,
 ) : ImageProcessor {
 
-    private var sceneUpdateListener: SceneUpdateListener? = null
+    private var sceneUpdateListener: ((Scene) -> Unit)? = null
 
     private val poseDetector = PoseDetection.getClient(
         PoseDetectorOptions.Builder().setDetectorMode(PoseDetectorOptions.STREAM_MODE).build()
     )
 
-    fun onSceneUpdated(listener: SceneUpdateListener): ImageToSceneProcessor {
+    fun onSceneUpdated(listener: (Scene) -> Unit): ImageToSceneProcessor {
         this.sceneUpdateListener = listener
         return this
     }
@@ -29,14 +29,14 @@ class ImageToSceneProcessor(
                 val mapper = PoseObjectMapper(imageSize, canvasSize)
                 if (pose.allPoseLandmarks.isEmpty()) {
                     val emptyScene = Scene(person = null)
-                    sceneUpdateListener?.onSceneUpdated(emptyScene)
+                    sceneUpdateListener?.invoke(emptyScene)
                     imageProxy.close()
                     return@addOnSuccessListener
                 }
 
                 val person = mapper.mapPose(pose)
                 val scene = Scene(person = person)
-                sceneUpdateListener?.onSceneUpdated(scene)
+                sceneUpdateListener?.invoke(scene)
             }
             .addOnFailureListener {
                 // Error handling - could be improved with a separate error listener

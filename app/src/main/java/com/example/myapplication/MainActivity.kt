@@ -26,7 +26,7 @@ import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class MainActivity : ComponentActivity(), SceneUpdateListener {
+class MainActivity : ComponentActivity() {
 
     internal enum class AppState {
         INITIAL {
@@ -35,7 +35,9 @@ class MainActivity : ComponentActivity(), SceneUpdateListener {
         },
         PHONE_RINGING {
             override fun getImageProcessor(activity: MainActivity): ImageProcessor =
-                ImageToSceneProcessor(activity.getCanvasSize()).onSceneUpdated(activity)
+                ImageToSceneProcessor(activity.getCanvasSize()).onSceneUpdated { scene ->
+                    activity.onSceneUpdated(scene)
+                }
         },
         PLAYING_VIDEO {
             override fun getImageProcessor(activity: MainActivity): ImageProcessor =
@@ -142,7 +144,7 @@ class MainActivity : ComponentActivity(), SceneUpdateListener {
         }, ContextCompat.getMainExecutor(this))
     }
 
-    override fun onSceneUpdated(scene: Scene) {
+    internal fun onSceneUpdated(scene: Scene) {
         sequence.add(scene)
         viewBinding.myCanvas.setScene(scene)
 
@@ -163,7 +165,6 @@ class MainActivity : ComponentActivity(), SceneUpdateListener {
 
     }
 
-
     internal fun transitionToInitial() {
         sequence.clear()
         currentState = AppState.INITIAL
@@ -178,10 +179,6 @@ class MainActivity : ComponentActivity(), SceneUpdateListener {
         // Show slideshow
         viewBinding.imageSlideshow.visibility = android.view.View.VISIBLE
         viewBinding.myCanvas.visibility = android.view.View.GONE
-        viewBinding.imageSlideshow.setImagesFromResources(
-            listOf(R.raw.aline_cesar_bw, R.raw.aline_cesar_bw_2),
-            intervalMs = 4000L
-        )
     }
 
     private fun stopVideo() {
@@ -206,7 +203,7 @@ class MainActivity : ComponentActivity(), SceneUpdateListener {
         currentState = AppState.PHONE_RINGING
         viewBinding.stateLabel.text = "Phone Ringing"
         viewBinding.imageSlideshow.visibility = android.view.View.GONE
-        viewBinding.myCanvas.visibility = android.view.View.VISIBLE
+//        viewBinding.myCanvas.visibility = android.view.View.VISIBLE
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = Runnable {
@@ -266,8 +263,6 @@ class MainActivity : ComponentActivity(), SceneUpdateListener {
     internal fun getCanvasSize(): Size {
         return Size(viewBinding.myCanvas.width, viewBinding.myCanvas.height)
     }
-
-    internal fun getMyCanvas() = viewBinding.myCanvas
 
     companion object {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
