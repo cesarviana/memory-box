@@ -15,7 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -276,8 +275,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.stateLabel.text = "Playing Video"
 
         stopRinging()
-        viewBinding.imageSlideshow.visibility = android.view.View.GONE
-        viewBinding.myCanvas.visibility = android.view.View.GONE
+        // viewBinding.imageSlideshow.visibility = android.view.View.GONE
 
         playVideo()
     }
@@ -343,9 +341,7 @@ class MainActivity : ComponentActivity() {
                 imageProxy.imageInfo.rotationDegrees
             )
 
-            val processor = activity.getCurrentImageProcessor()
-
-            processor.process(imageProxy, inputImage)
+            activity.getCurrentImageProcessor().process(imageProxy, inputImage)
         }
     }
 }
