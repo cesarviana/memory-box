@@ -246,6 +246,8 @@ class MainActivity : ComponentActivity() {
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = null
+
+        viewBinding.vintageCountdown.stop()
     }
 
     internal fun transitionToPhoneRinging() {
@@ -275,9 +277,14 @@ class MainActivity : ComponentActivity() {
         viewBinding.stateLabel.text = "Playing Video"
 
         stopRinging()
-        // viewBinding.imageSlideshow.visibility = android.view.View.GONE
+        showCountdownBeforeVideo()
+    }
 
-        playVideo()
+    private fun showCountdownBeforeVideo() {
+        viewBinding.vintageCountdown.visibility = android.view.View.VISIBLE
+        viewBinding.vintageCountdown.startCountdown(5) {
+            playVideo()
+        }
     }
 
     private fun playVideo() {
