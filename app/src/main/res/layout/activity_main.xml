@@ -59,16 +59,63 @@
             app:layout_constraintTop_toTopOf="parent" />
 
         <TextView
-            android:visibility="invisible"
             android:id="@+id/state_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             android:text="Initial"
             android:textSize="24sp"
+            android:visibility="visible"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/recording_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="32dp"
+            android:text="Mantenha o telefone para gravar sua mensagem"
+            android:textAlignment="center"
+            android:textColor="#FFFFFF"
+            android:textSize="28sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/recording_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="● GRAVANDO"
+            android:textSize="32sp"
+            android:textColor="#FF0000"
+            android:textStyle="bold"
+            android:visibility="gone"
+            android:layout_marginTop="32dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/thank_you_message"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Obrigado pela sua mensagem!"
+            android:textSize="32sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textAlignment="center"
+            android:gravity="center"
+            android:padding="32dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
