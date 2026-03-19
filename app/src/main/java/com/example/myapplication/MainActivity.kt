@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.util.Size
+import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
     private var ringingTimeoutRunnable: Runnable? = null
     private var personDetectionTimeoutRunnable: Runnable? = null
     private var mediaPlayer: MediaPlayer? = null
+    private var mediaPlayerResId: Int? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
     private var recordingFilePath: String? = null
@@ -83,7 +85,7 @@ class MainActivity : ComponentActivity() {
             onInitialSceneUpdated(scene)
         }
         phoneRingingProcessor = ImageToSceneProcessor(::getCanvasSize).onSceneUpdated { scene ->
-            onSceneUpdated(scene)
+            onPhoneRingingSceneUpdated(scene)
         }
         waitingForRecordingProcessor =
             ImageToSceneProcessor(::getCanvasSize).onSceneUpdated { scene ->
@@ -123,7 +125,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
-        viewBinding.videoView.visibility = android.view.View.GONE
+        viewBinding.videoView.visibility = View.GONE
 
         // Initialize the slideshow with images
         viewBinding.imageSlideshow.setImagesFromResources(
@@ -210,7 +212,6 @@ class MainActivity : ComponentActivity() {
         viewBinding.myCanvas.setScene(scene)
 
         if (scene.hasNoPerson()) {
-            Log.i("MY_APP", "No person in initial state")
             personDetectionTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
             personDetectionTimeoutRunnable = null
             return
@@ -218,27 +219,30 @@ class MainActivity : ComponentActivity() {
 
         if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
             Log.i("MY_APP", "Person holding phone near ear detected in initial state!")
-            transitionToPlayingVideo()
+            runDialingEffect {
+                transitionToPlayingVideo()
+            }
             return
         }
 
-        if (personDetectionTimeoutRunnable == null) {
-            Log.i("MY_APP", "Starting person detection timeout")
-            personDetectionTimeoutRunnable = Runnable {
-                if (currentState == AppState.INITIAL && sequence.getLatestScene()?.hasPerson() == true
-                ) {
-                    Log.i(
-                        "MY_APP",
-                        "Person still detected after 30 seconds, transitioning to phone ringing"
-                    )
-                    transitionToPhoneRinging()
-                }
-            }
-            stateHandler.postDelayed(personDetectionTimeoutRunnable!!, PERSON_DETECTION_TIMEOUT_MS)
-        }
+//        if (personDetectionTimeoutRunnable == null) {
+//            Log.i("MY_APP", "Starting person detection timeout")
+//            personDetectionTimeoutRunnable = Runnable {
+//                if (currentState == AppState.INITIAL && !isMediaPlayerPlaying() && sequence.getLatestScene()
+//                        ?.hasPerson() == true
+//                ) {
+//                    Log.i(
+//                        "MY_APP",
+//                        "Person still detected after 30 seconds, transitioning to phone ringing"
+//                    )
+//                    transitionToPhoneRinging()
+//                }
+//            }
+//            stateHandler.postDelayed(personDetectionTimeoutRunnable!!, PERSON_DETECTION_TIMEOUT_MS)
+//        }
     }
 
-    internal fun onSceneUpdated(scene: Scene) {
+    internal fun onPhoneRingingSceneUpdated(scene: Scene) {
         sequence.add(scene)
         viewBinding.myCanvas.setScene(scene)
 
@@ -259,8 +263,7 @@ class MainActivity : ComponentActivity() {
 
     internal fun transitionToInitial() {
         sequence.clear()
-        currentState = AppState.INITIAL
-        viewBinding.stateLabel.text = "Initial"
+        transitionToState(AppState.INITIAL)
 
         stopRinging()
         stopVideo()
@@ -272,13 +275,13 @@ class MainActivity : ComponentActivity() {
         personDetectionTimeoutRunnable = null
 
         // Hide all messages and recording UI
-        viewBinding.thankYouMessage.visibility = android.view.View.GONE
-        viewBinding.recordingMessage.visibility = android.view.View.GONE
-        viewBinding.recordingIndicator.visibility = android.view.View.GONE
-        viewBinding.myCanvas.visibility = android.view.View.GONE
+        viewBinding.thankYouMessage.visibility = View.GONE
+        viewBinding.centralMessage.visibility = View.GONE
+        viewBinding.recordingIndicator.visibility = View.GONE
+        viewBinding.myCanvas.visibility = View.GONE
 
         // Show slideshow
-        viewBinding.imageSlideshow.visibility = android.view.View.VISIBLE
+        viewBinding.imageSlideshow.visibility = View.VISIBLE
     }
 
     private fun stopVideo() {
@@ -286,14 +289,12 @@ class MainActivity : ComponentActivity() {
             if (it.isPlaying) {
                 it.stopPlayback()
             }
-            it.visibility = android.view.View.GONE
+            it.visibility = View.GONE
         }
     }
 
     private fun stopRinging() {
-        mediaPlayer?.stop()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        releaseMediaPlayer()
 
         ringingTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         ringingTimeoutRunnable = null
@@ -302,8 +303,7 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun transitionToPhoneRinging() {
-        currentState = AppState.PHONE_RINGING
-        viewBinding.stateLabel.text = "Phone Ringing"
+        transitionToState(AppState.PHONE_RINGING)
 
         personDetectionTimeoutRunnable?.let { stateHandler.removeCallbacks(it) }
         personDetectionTimeoutRunnable = null
@@ -318,28 +318,88 @@ class MainActivity : ComponentActivity() {
         }
         stateHandler.postDelayed(ringingTimeoutRunnable!!, RINGING_TIMEOUT_MS)
 
-        mediaPlayer = MediaPlayer.create(this, R.raw.phone_ringing)
-        mediaPlayer?.isLooping = true
-        mediaPlayer?.start()
+        val player = getOrCreateMediaPlayer(R.raw.receiving_call, isLooping = true) ?: return
+        if (!isMediaPlayerPlaying()) {
+            player.start()
+        }
     }
 
     internal fun transitionToPlayingVideo() {
         currentState = AppState.PLAYING_VIDEO
-        viewBinding.stateLabel.text = "Playing Video"
-
-        stopRinging()
-        showCountdownBeforeVideo()
+        releaseMediaPlayer()
+        playVideo()
     }
 
-    private fun showCountdownBeforeVideo() {
-        viewBinding.vintageCountdown.visibility = android.view.View.VISIBLE
-        viewBinding.vintageCountdown.startCountdown(5) {
-            playVideo()
+    private fun runDialingEffect(onComplete: () -> Unit) {
+        if (isMediaPlayerPlaying()) {
+            return
         }
+        Log.d("MY_APP", "Running dialing effect")
+        showMessage("Chamando")
+        val player = getOrCreateMediaPlayer(R.raw.making_call, isLooping = false) ?: run {
+            onComplete()
+            return
+        }
+        player.setOnCompletionListener {
+            releaseMediaPlayer(player)
+            clearMessage()
+            onComplete()
+        }
+        player.start()
+    }
+
+    private fun isMediaPlayerPlaying(): Boolean {
+        val player = mediaPlayer ?: return false
+        return runCatching { player.isPlaying }.getOrDefault(false)
+    }
+
+    private fun getOrCreateMediaPlayer(resId: Int, isLooping: Boolean): MediaPlayer? {
+        val existingPlayer = mediaPlayer
+        if (existingPlayer != null && mediaPlayerResId == resId) {
+            existingPlayer.isLooping = isLooping
+            return existingPlayer
+        }
+
+        releaseMediaPlayer()
+
+        return MediaPlayer.create(this, resId)?.also { player ->
+            player.isLooping = isLooping
+            mediaPlayer = player
+            mediaPlayerResId = resId
+        }
+    }
+
+    private fun releaseMediaPlayer(expectedPlayer: MediaPlayer? = null) {
+        val player = mediaPlayer ?: return
+        if (expectedPlayer != null && player !== expectedPlayer) {
+            return
+        }
+
+        player.setOnCompletionListener(null)
+        runCatching {
+            if (player.isPlaying) {
+                player.stop()
+            }
+        }
+        runCatching { player.release() }
+
+        mediaPlayer = null
+        mediaPlayerResId = null
+    }
+
+    private fun showMessage(message: String) {
+        viewBinding.centralMessage.text = message
+        viewBinding.centralMessage.visibility = View.VISIBLE
+    }
+
+    private fun clearMessage() {
+        showMessage("")
     }
 
     private fun playVideo() {
         try {
+            viewBinding.centralMessage.visibility = View.GONE
+
             val videoUri = "android.resource://${packageName}/${R.raw.cabine}"
 
             viewBinding.videoView.apply {
@@ -351,7 +411,7 @@ class MainActivity : ComponentActivity() {
                 setOnCompletionListener {
                     transitionToWaitingForRecording()
                 }
-                visibility = android.view.View.VISIBLE
+                visibility = View.VISIBLE
             }
         } catch (e: Exception) {
             Log.e("MY_APP", "Error playing video", e)
@@ -362,13 +422,14 @@ class MainActivity : ComponentActivity() {
         sequence.clear()
         currentState = AppState.WAITING_FOR_RECORDING
         viewBinding.stateLabel.text = "Waiting for Recording"
+        showMessage("Para gravar, segure o telefone próximo ao ouvido")
 
         stopVideo()
 
         // Show the recording message
-        viewBinding.recordingMessage.visibility = android.view.View.VISIBLE
-        viewBinding.imageSlideshow.visibility = android.view.View.GONE
-        viewBinding.myCanvas.visibility = android.view.View.GONE
+        viewBinding.centralMessage.visibility = View.VISIBLE
+        viewBinding.imageSlideshow.visibility = View.GONE
+        viewBinding.myCanvas.visibility = View.GONE
     }
 
     internal fun onWaitingForRecordingSceneUpdated(scene: Scene) {
@@ -386,16 +447,16 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun transitionToRecording() {
-        currentState = AppState.RECORDING
-        viewBinding.stateLabel.text = "Recording"
-
-        // Hide message and show countdown
-        viewBinding.recordingMessage.visibility = android.view.View.GONE
-        viewBinding.vintageCountdown.visibility = android.view.View.VISIBLE
-
+        transitionToState(AppState.RECORDING)
+        clearMessage()
         viewBinding.vintageCountdown.startCountdown(3) {
             startRecording()
         }
+    }
+
+    private fun transitionToState(state: AppState) {
+        currentState = state
+        viewBinding.stateLabel.text = currentState.name
     }
 
     @SuppressLint("MissingPermission")
@@ -404,14 +465,8 @@ class MainActivity : ComponentActivity() {
             val capture = videoCapture ?: run {
                 Log.e("MY_APP", "VideoCapture not initialized")
                 Toast.makeText(this, "Erro: câmera não inicializada", Toast.LENGTH_SHORT).show()
-                transitionToInitial()
                 return
             }
-
-            // Show recording indicator
-            viewBinding.vintageCountdown.visibility = android.view.View.GONE
-            viewBinding.recordingIndicator.visibility = android.view.View.VISIBLE
-            startBlinking()
 
             val myAppDir = java.io.File(filesDir, "MyApplication")
             if (!myAppDir.exists()) {
@@ -501,13 +556,12 @@ class MainActivity : ComponentActivity() {
 
     internal fun transitionToRecordingComplete() {
         sequence.clear()
-        currentState = AppState.RECORDING_COMPLETE
-        viewBinding.stateLabel.text = "Recording Complete"
+        transitionToState(AppState.RECORDING_COMPLETE)
 
         // Show thank you message
         viewBinding.thankYouMessage.visibility = android.view.View.VISIBLE
         viewBinding.recordingIndicator.visibility = android.view.View.GONE
-        viewBinding.recordingMessage.visibility = android.view.View.GONE
+        viewBinding.centralMessage.visibility = android.view.View.GONE
         viewBinding.imageSlideshow.visibility = android.view.View.GONE
         viewBinding.myCanvas.visibility = android.view.View.GONE
 
@@ -516,7 +570,6 @@ class MainActivity : ComponentActivity() {
             transitionToInitial()
         }, 5000)
     }
-
 
     override fun onDestroy() {
         super.onDestroy()
@@ -537,7 +590,7 @@ class MainActivity : ComponentActivity() {
         private val activity: MainActivity,
     ) : ImageAnalysis.Analyzer {
         private var lastAnalyzedTimestamp = 0L
-        private val imageAnalysisInterval = 500
+        private val imageAnalysisInterval = 250
 
         @SuppressLint("UnsafeOptInUsageError")
         override fun analyze(imageProxy: ImageProxy) {
