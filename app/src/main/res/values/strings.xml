@@ -13,5 +13,4 @@
     <string name="view_message">Ver mensagem</string>
     <string name="record_message">Gravar mensagem</string>
     <string name="permission_denied">Permissao Negada</string>
-    <string name="choose_option">Escolha</string>
 </resources>

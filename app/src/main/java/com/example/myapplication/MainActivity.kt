@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.Log
 import android.util.Size
@@ -57,6 +58,8 @@ class MainActivity : ComponentActivity() {
     private var activeRecording: Recording? = null
     private var recordingFilePath: String? = null
     private var blinkAnimation: android.view.animation.Animation? = null
+    private var ringtonePlayer: MediaPlayer? = null
+    private var hasRungForCurrentPresence = false
 
     internal lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -158,10 +161,12 @@ class MainActivity : ComponentActivity() {
     private fun onSceneUpdated(scene: Scene) {
         sequence.add(scene)
         viewBinding.myCanvas.setScene(scene)
+        updatePersonPresence(scene)
 
         when (currentState) {
             AppState.WAITING_PERSON -> {
                 if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
+                    stopRingtone()
                     enterPersonHoldingPhone()
                 }
             }
@@ -184,6 +189,7 @@ class MainActivity : ComponentActivity() {
     private fun enterWaitingPerson() {
         sequence.clear()
         transitionToState(AppState.WAITING_PERSON)
+        hasRungForCurrentPresence = false
 
         stopVideo()
         stopRecording()
@@ -246,6 +252,58 @@ class MainActivity : ComponentActivity() {
             Log.e("MY_APP", "Error playing video", e)
             enterWaitingRecord()
         }
+    }
+
+    private fun updatePersonPresence(scene: Scene) {
+        if (scene.hasNoPerson()) {
+            hasRungForCurrentPresence = false
+            return
+        }
+
+        if (hasRungForCurrentPresence) {
+            return
+        }
+
+        hasRungForCurrentPresence = true
+        playRingtoneOnce()
+    }
+
+    private fun playRingtoneOnce() {
+        val player = ringtonePlayer ?: MediaPlayer.create(this, R.raw.receiving_call)?.also { mediaPlayer ->
+            mediaPlayer.isLooping = false
+            mediaPlayer.setOnCompletionListener { completedPlayer ->
+                completedPlayer.seekTo(0)
+            }
+            mediaPlayer.setOnErrorListener { failedPlayer, what, extra ->
+                Log.e("MY_APP", "Ringtone playback error: what=$what extra=$extra")
+                failedPlayer.release()
+                ringtonePlayer = null
+                true
+            }
+            ringtonePlayer = mediaPlayer
+        }
+
+        if (player == null) {
+            Log.e("MY_APP", "Unable to create ringtone player")
+            return
+        }
+
+        if (player.isPlaying) {
+            return
+        }
+
+        player.seekTo(0)
+        player.start()
+    }
+
+    private fun stopRingtone() {
+        ringtonePlayer?.let {
+            if (it.isPlaying) {
+                it.stop()
+            }
+            it.release()
+        }
+        ringtonePlayer = null
     }
 
     private fun stopVideo() {
@@ -354,6 +412,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         stopVideo()
         stopRecording()
+        stopRingtone()
         cameraExecutor.shutdown()
         viewBinding.imageSlideshow.stopAutoPlay()
     }
