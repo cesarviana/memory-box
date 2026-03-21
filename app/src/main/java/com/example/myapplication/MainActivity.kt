@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
             intervalMs = 120_000L
         )
 
-        viewBinding.buttonViewMessage.setOnClickListener { playMessageVideo() }
+        viewBinding.buttonSkipVideo.setOnClickListener { enterWaitingRecord() }
         viewBinding.buttonRecordMessage.setOnClickListener { startRecordingMessage() }
 
         hideSystemUI()
@@ -198,24 +198,25 @@ class MainActivity : ComponentActivity() {
         viewBinding.videoView.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
-        viewBinding.buttonViewMessage.visibility = View.GONE
+        viewBinding.buttonSkipVideo.visibility = View.GONE
         viewBinding.buttonRecordMessage.visibility = View.GONE
     }
 
     private fun enterPersonHoldingPhone() {
         transitionToState(AppState.PERSON_HOLDING_PHONE)
-
-        stopVideo()
-
         viewBinding.imageSlideshow.visibility = View.GONE
-        viewBinding.videoView.visibility = View.GONE
-        viewBinding.centralMessage.visibility = View.VISIBLE
-        viewBinding.centralMessage.text = getString(R.string.choose_option)
-        viewBinding.buttonViewMessage.visibility = View.VISIBLE
-        viewBinding.buttonRecordMessage.visibility = View.VISIBLE
+        viewBinding.centralMessage.visibility = View.GONE
+        viewBinding.buttonSkipVideo.visibility = View.VISIBLE
+        viewBinding.buttonRecordMessage.visibility = View.GONE
+
+        playMessageVideo()
     }
 
     private fun enterWaitingRecord() {
+        if (currentState == AppState.WAITING_RECORD) {
+            return
+        }
+
         transitionToState(AppState.WAITING_RECORD)
 
         stopVideo()
@@ -224,16 +225,18 @@ class MainActivity : ComponentActivity() {
         viewBinding.videoView.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.VISIBLE
         viewBinding.centralMessage.text = getString(R.string.waiting_record_message)
-        viewBinding.buttonViewMessage.visibility = View.GONE
+        viewBinding.buttonSkipVideo.visibility = View.GONE
         viewBinding.buttonRecordMessage.visibility = View.VISIBLE
     }
 
     private fun playMessageVideo() {
         stopRecording()
-        viewBinding.buttonViewMessage.visibility = View.GONE
         viewBinding.buttonRecordMessage.visibility = View.GONE
+        viewBinding.buttonSkipVideo.visibility = View.VISIBLE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.imageSlideshow.visibility = View.GONE
+
+        stopVideo()
 
         try {
             val videoUri = "android.resource://${packageName}/${R.raw.cabine}"
@@ -308,6 +311,8 @@ class MainActivity : ComponentActivity() {
 
     private fun stopVideo() {
         viewBinding.videoView.let {
+            it.setOnPreparedListener(null)
+            it.setOnCompletionListener(null)
             if (it.isPlaying) {
                 it.stopPlayback()
             }
