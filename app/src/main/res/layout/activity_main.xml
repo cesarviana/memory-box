@@ -5,20 +5,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <androidx.camera.view.PreviewView
-            android:id="@+id/view_finder"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="1.0"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.0"
-            app:scaleType="fitStart">
-
-        </androidx.camera.view.PreviewView>
-
         <com.example.myapplication.ImageSlideshow
             android:id="@+id/image_slideshow"
             android:layout_width="match_parent"
@@ -48,22 +34,12 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <com.example.myapplication.VintageCountdownView
-            android:id="@+id/vintage_countdown"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
         <TextView
             android:id="@+id/state_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
-            android:text="Initial"
+            android:text="@string/state_initial"
             android:textSize="24sp"
             android:visibility="visible"
             app:layout_constraintBottom_toBottomOf="parent"
@@ -76,7 +52,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:padding="32dp"
-            android:text="Mantenha o telefone para gravar sua mensagem"
+            android:text="@string/central_message_default"
             android:textAlignment="center"
             android:textColor="#FFFFFF"
             android:textSize="28sp"
@@ -90,7 +66,7 @@
             android:id="@+id/recording_indicator"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="● GRAVANDO"
+            android:text="@string/recording_indicator"
             android:textSize="32sp"
             android:textColor="#FF0000"
             android:textStyle="bold"
@@ -100,22 +76,33 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <TextView
-            android:id="@+id/thank_you_message"
-            android:layout_width="wrap_content"
+        <Button
+            android:id="@+id/button_view_message"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Obrigado pela sua mensagem!"
-            android:textSize="32sp"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:textAlignment="center"
-            android:gravity="center"
-            android:padding="32dp"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="16dp"
+            android:text="@string/view_message"
+            android:textAllCaps="false"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@+id/button_record_message"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/button_record_message"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:layout_marginBottom="48dp"
+            android:text="@string/record_message"
+            android:textAllCaps="false"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
