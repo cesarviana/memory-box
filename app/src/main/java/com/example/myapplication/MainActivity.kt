@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
         )
+        private const val STOP_RECORDING_AFTER_RELEASE_MS = 5000L
     }
 
     internal var currentState: AppState = AppState.WAITING_PERSON
@@ -60,6 +61,7 @@ class MainActivity : ComponentActivity() {
     private var blinkAnimation: android.view.animation.Animation? = null
     private var ringtonePlayer: MediaPlayer? = null
     private var hasRungForCurrentPresence = false
+    private var releasedPhoneWhileRecordingTime: Long? = null
 
     internal lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -178,13 +180,49 @@ class MainActivity : ComponentActivity() {
             }
 
             AppState.WAITING_RECORD -> {
-                if (scene.hasNoPerson()) {
-                    stopRecording()
-                    enterWaitingPerson()
-                } else if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
-                    startRecordingMessage()
-                }
+                handleWaitingRecordState(scene)
             }
+        }
+    }
+
+    private fun handleWaitingRecordState(scene: Scene) {
+        if (scene.hasNoPerson()) {
+            releasedPhoneWhileRecordingTime = null
+            stopRecording()
+            enterWaitingPerson()
+            return
+        }
+
+        val isHoldingPhone = sceneSequenceAnalyser.isHoldingPhone(sequence)
+
+        if (activeRecording == null) {
+            releasedPhoneWhileRecordingTime = null
+            if (isHoldingPhone) {
+                startRecordingMessage()
+            }
+            return
+        }
+
+        if (isHoldingPhone) {
+            if (releasedPhoneWhileRecordingTime != null) {
+                releasedPhoneWhileRecordingTime = null
+                viewBinding.centralMessage.text = getString(R.string.recording_in_progress)
+            }
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        if (releasedPhoneWhileRecordingTime == null) {
+            releasedPhoneWhileRecordingTime = now
+            viewBinding.centralMessage.visibility = View.VISIBLE
+            viewBinding.centralMessage.text = getString(R.string.hold_phone_to_record_warning)
+            return
+        }
+
+        if (now - releasedPhoneWhileRecordingTime!! >= STOP_RECORDING_AFTER_RELEASE_MS) {
+            releasedPhoneWhileRecordingTime = null
+            stopRecording()
+            enterWaitingPerson()
         }
     }
 
@@ -195,6 +233,7 @@ class MainActivity : ComponentActivity() {
 
         stopVideo()
         stopRecording()
+        releasedPhoneWhileRecordingTime = null
 
         viewBinding.imageSlideshow.visibility = View.VISIBLE
         viewBinding.videoView.visibility = View.GONE
@@ -222,6 +261,7 @@ class MainActivity : ComponentActivity() {
         }
 
         transitionToState(AppState.WAITING_RECORD)
+        releasedPhoneWhileRecordingTime = null
 
         stopVideo()
 
@@ -235,6 +275,7 @@ class MainActivity : ComponentActivity() {
 
     private fun playMessageVideo(onCompletionListener: (() -> Unit)) {
         stopRecording()
+        releasedPhoneWhileRecordingTime = null
         viewBinding.buttonRecordMessage.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
         viewBinding.centralMessage.visibility = View.GONE
@@ -395,6 +436,7 @@ class MainActivity : ComponentActivity() {
 
     private fun stopRecording() {
         try {
+            releasedPhoneWhileRecordingTime = null
             if (activeRecording != null) {
                 activeRecording?.stop()
                 activeRecording = null
