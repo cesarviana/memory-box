@@ -13,7 +13,8 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.62" />
 
         <androidx.camera.view.PreviewView
             android:id="@+id/camera_preview"
@@ -50,7 +51,7 @@
             android:layout_marginBottom="16dp"
             android:text="@string/state_initial"
             android:textSize="24sp"
-            android:visibility="visible"
+            android:visibility="invisible"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
@@ -64,6 +65,10 @@
             android:text="@string/central_message_default"
             android:textAlignment="center"
             android:textColor="#FFFFFF"
+            android:shadowColor="#B3000000"
+            android:shadowDx="0"
+            android:shadowDy="2"
+            android:shadowRadius="6"
             android:textSize="28sp"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"

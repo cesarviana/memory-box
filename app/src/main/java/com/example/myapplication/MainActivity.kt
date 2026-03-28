@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
         )
-        private const val STOP_RECORDING_AFTER_RELEASE_MS = 5000L
+        private const val STOP_RECORDING_AFTER_RELEASE_MS = 7000L
     }
 
     internal var currentState: AppState = AppState.WAITING_PERSON
@@ -220,7 +220,6 @@ class MainActivity : ComponentActivity() {
         if (isHoldingPhone) {
             if (releasedPhoneWhileRecordingTime != null) {
                 releasedPhoneWhileRecordingTime = null
-                viewBinding.centralMessage.text = getString(R.string.recording_in_progress)
             }
             return
         }
@@ -358,6 +357,7 @@ class MainActivity : ComponentActivity() {
 
     private fun playRingtoneOnce() {
         val player = ringtonePlayer ?: MediaPlayer.create(this, R.raw.receiving_call)?.also { mediaPlayer ->
+            mediaPlayer.setVolume(0.6f, 0.6f)
             mediaPlayer.isLooping = false
             mediaPlayer.setOnCompletionListener { completedPlayer ->
                 completedPlayer.seekTo(0)
@@ -445,7 +445,6 @@ class MainActivity : ComponentActivity() {
                             viewBinding.recordingIndicator.visibility = View.VISIBLE
                             startBlinking()
                             viewBinding.centralMessage.visibility = View.VISIBLE
-                            viewBinding.centralMessage.text = getString(R.string.recording_in_progress)
                             Log.i("MY_APP", "Video recording started")
                         }
 
