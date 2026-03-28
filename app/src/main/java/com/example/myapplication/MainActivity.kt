@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
         )
-        private const val STOP_RECORDING_AFTER_RELEASE_MS = 7000L
+        private const val STOP_RECORDING_AFTER_RELEASE_MS = 5000L
     }
 
     internal var currentState: AppState = AppState.WAITING_PERSON
