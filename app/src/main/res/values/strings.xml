@@ -3,7 +3,7 @@
     <string name="state_initial">WAITING_PERSON</string>
     <string name="central_message_default">Mantenha o telefone para gravar sua mensagem</string>
     <string name="recording_indicator">● GRAVANDO</string>
-    <string name="waiting_record_message">Para gravar, clique em Gravar mensagem</string>
+    <string name="waiting_record_message">Segure o telefone para iniciar a gravação</string>
     <string name="camera_not_initialized">Erro: camera nao inicializada</string>
     <string name="recording_in_progress">Gravando mensagem…</string>
     <string name="video_saved">Video salvo: %1$s</string>

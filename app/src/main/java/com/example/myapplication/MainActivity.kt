@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
     internal enum class AppState {
         WAITING_PERSON,
         PERSON_HOLDING_PHONE,
-        WAITING_RECORD
+        WAITING_RECORD,
     }
 
     companion object {
@@ -181,6 +181,8 @@ class MainActivity : ComponentActivity() {
                 if (scene.hasNoPerson()) {
                     stopRecording()
                     enterWaitingPerson()
+                } else if (sceneSequenceAnalyser.isHoldingPhone(sequence)) {
+                    startRecordingMessage()
                 }
             }
         }
@@ -209,7 +211,9 @@ class MainActivity : ComponentActivity() {
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
         viewBinding.buttonRecordMessage.visibility = View.GONE
 
-        playMessageVideo()
+        playMessageVideo(onCompletionListener = {
+            enterWaitingRecord()
+        })
     }
 
     private fun enterWaitingRecord() {
@@ -229,7 +233,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.buttonRecordMessage.visibility = View.VISIBLE
     }
 
-    private fun playMessageVideo() {
+    private fun playMessageVideo(onCompletionListener: (() -> Unit)) {
         stopRecording()
         viewBinding.buttonRecordMessage.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
@@ -247,7 +251,7 @@ class MainActivity : ComponentActivity() {
                     start()
                 }
                 setOnCompletionListener {
-                    enterWaitingRecord()
+                    onCompletionListener()
                 }
                 visibility = View.VISIBLE
             }
@@ -357,6 +361,7 @@ class MainActivity : ComponentActivity() {
                 .start(ContextCompat.getMainExecutor(this)) { event ->
                     when (event) {
                         is VideoRecordEvent.Start -> {
+                            viewBinding.buttonRecordMessage.visibility = View.GONE
                             viewBinding.recordingIndicator.visibility = View.VISIBLE
                             startBlinking()
                             viewBinding.centralMessage.visibility = View.VISIBLE
