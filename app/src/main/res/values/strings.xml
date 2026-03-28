@@ -5,8 +5,8 @@
     <string name="recording_indicator">● GRAVANDO</string>
     <string name="waiting_record_message">Segure o telefone para iniciar a gravação</string>
     <string name="camera_not_initialized">Erro: camera nao inicializada</string>
-    <string name="hold_phone_to_record_warning">Segure o telefone para continuar gravando</string>
-    <string name="video_saved">Video salvo: %1$s</string>
+    <string name="hold_phone_to_record_countdown">Segure o telefone para continuar gravando\nParando em %1$d s</string>
+    <string name="video_saved">Video salvo na galeria: %1$s</string>
     <string name="recording_saved">Mensagem gravada com sucesso</string>
     <string name="recording_thank_you_message">Obrigado pela sua mensagem!</string>
     <string name="recording_start_error">Erro ao iniciar gravacao</string>

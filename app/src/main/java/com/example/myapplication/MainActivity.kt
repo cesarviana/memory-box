@@ -2,9 +2,12 @@ package com.example.myapplication
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
+import android.provider.MediaStore
 import android.util.Log
 import android.util.Size
 import android.view.View
@@ -18,7 +21,7 @@ import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
-import androidx.camera.video.FileOutputOptions
+import androidx.camera.video.MediaStoreOutputOptions
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
 import androidx.camera.video.Recorder
@@ -32,7 +35,6 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -59,7 +61,7 @@ class MainActivity : ComponentActivity() {
     internal var currentState: AppState = AppState.WAITING_PERSON
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
-    private var recordingFilePath: String? = null
+    private var lastRecordedVideoUri: String? = null
     private var blinkAnimation: android.view.animation.Animation? = null
     private var ringtonePlayer: MediaPlayer? = null
     private var hasRungForCurrentPresence = false
@@ -213,6 +215,8 @@ class MainActivity : ComponentActivity() {
             releasedPhoneWhileRecordingTime = null
             if (isHoldingPhone) {
                 startRecordingMessage()
+                viewBinding.centralMessage.text = ""
+                viewBinding.centralMessage.visibility = View.GONE
             }
             return
         }
@@ -220,6 +224,8 @@ class MainActivity : ComponentActivity() {
         if (isHoldingPhone) {
             if (releasedPhoneWhileRecordingTime != null) {
                 releasedPhoneWhileRecordingTime = null
+                viewBinding.centralMessage.text = ""
+                viewBinding.centralMessage.visibility = View.GONE
             }
             return
         }
@@ -227,15 +233,26 @@ class MainActivity : ComponentActivity() {
         val now = System.currentTimeMillis()
         if (releasedPhoneWhileRecordingTime == null) {
             releasedPhoneWhileRecordingTime = now
-            viewBinding.centralMessage.visibility = View.VISIBLE
-            viewBinding.centralMessage.text = getString(R.string.hold_phone_to_record_warning)
-            return
         }
+
+        updateRecordingStopCountdown(now)
 
         if (now - releasedPhoneWhileRecordingTime!! >= STOP_RECORDING_AFTER_RELEASE_MS) {
             releasedPhoneWhileRecordingTime = null
             finishRecordingAndShowThankYou()
         }
+    }
+
+    private fun updateRecordingStopCountdown(now: Long) {
+        val releaseStartedAt = releasedPhoneWhileRecordingTime ?: return
+        val remainingMs = (STOP_RECORDING_AFTER_RELEASE_MS - (now - releaseStartedAt)).coerceAtLeast(0L)
+        val remainingSeconds = ((remainingMs + 999L) / 1000L).toInt()
+
+        viewBinding.centralMessage.visibility = View.VISIBLE
+        viewBinding.centralMessage.text = getString(
+            R.string.hold_phone_to_record_countdown,
+            remainingSeconds
+        )
     }
 
     private fun finishRecordingAndShowThankYou() {
@@ -426,16 +443,21 @@ class MainActivity : ComponentActivity() {
                 return
             }
 
-            val myAppDir = File(filesDir, "MyApplication")
-            if (!myAppDir.exists()) {
-                myAppDir.mkdirs()
+            val date = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault()).format(Date())
+            val displayName = "my_application_recording_$date.mp4"
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "Movies/MyApplication")
             }
 
-            val date = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.getDefault()).format(Date())
-            val videoFile = File(myAppDir, "my_application_recording_$date.mp4")
-            recordingFilePath = videoFile.absolutePath
+            val outputOptions = MediaStoreOutputOptions.Builder(
+                contentResolver,
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            )
+                .setContentValues(contentValues)
+                .build()
 
-            val outputOptions = FileOutputOptions.Builder(videoFile).build()
             activeRecording = capture.output
                 .prepareRecording(this, outputOptions)
                 .withAudioEnabled()
@@ -444,7 +466,8 @@ class MainActivity : ComponentActivity() {
                         is VideoRecordEvent.Start -> {
                             viewBinding.recordingIndicator.visibility = View.VISIBLE
                             startBlinking()
-                            viewBinding.centralMessage.visibility = View.VISIBLE
+                            viewBinding.centralMessage.text = ""
+                            viewBinding.centralMessage.visibility = View.GONE
                             Log.i("MY_APP", "Video recording started")
                         }
 
@@ -452,14 +475,19 @@ class MainActivity : ComponentActivity() {
                             stopBlinking()
                             viewBinding.recordingIndicator.visibility = View.GONE
                             activeRecording = null
+                            val outputUri = event.outputResults.outputUri
 
                             if (event.hasError()) {
                                 Log.e("MY_APP", "Video recording error: ${event.error}")
+                                if (outputUri != Uri.EMPTY) {
+                                    contentResolver.delete(outputUri, null, null)
+                                }
                                 enterWaitingPerson()
                             } else {
+                                lastRecordedVideoUri = outputUri.toString()
                                 Toast.makeText(
                                     this,
-                                    getString(R.string.video_saved, recordingFilePath),
+                                    getString(R.string.video_saved, lastRecordedVideoUri ?: "Galeria"),
                                     Toast.LENGTH_LONG
                                 ).show()
 
