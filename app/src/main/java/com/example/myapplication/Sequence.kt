@@ -13,8 +13,6 @@ class Sequence {
 
     fun tooShort(): Boolean = scenes.size < sequenceSize
 
-    fun getLatestScene(): Scene? = scenes.lastOrNull()
-
     fun clear() {
         scenes.clear()
     }

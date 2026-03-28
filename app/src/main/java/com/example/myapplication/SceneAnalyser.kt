@@ -14,7 +14,7 @@ enum class PoseState {
 }
 
 class SceneAnalyser(
-    private val earHandMinProximity: Int = 300
+    private val earHandMinProximity: Int = 200
 ) {
 
     fun detectPose(scene: Scene): PoseState {
