@@ -19,6 +19,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.MediaStoreOutputOptions
@@ -33,6 +35,7 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.isVisible
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
 import java.text.SimpleDateFormat
@@ -55,6 +58,7 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
         )
+        private val ANALYSIS_TARGET_RESOLUTION = Size(640, 480)
         private const val STOP_RECORDING_AFTER_RELEASE_MS = 7000L
     }
 
@@ -139,6 +143,17 @@ class MainActivity : ComponentActivity() {
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
             val imageAnalyzer = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setResolutionSelector(
+                    ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            ResolutionStrategy(
+                                ANALYSIS_TARGET_RESOLUTION,
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER
+                            )
+                        )
+                        .build()
+                )
                 .build()
                 .also { it.setAnalyzer(cameraExecutor, StatefulImageAnalyzer(this)) }
 
@@ -150,7 +165,7 @@ class MainActivity : ComponentActivity() {
                 Recorder.Builder()
                     .setQualitySelector(
                         QualitySelector.from(
-                            Quality.HIGHEST,
+                            Quality.FHD,
                             FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
                         )
                     )
@@ -168,7 +183,9 @@ class MainActivity : ComponentActivity() {
 
     private fun onSceneUpdated(scene: Scene) {
         sequence.add(scene)
-        viewBinding.myCanvas.setScene(scene)
+        if (viewBinding.myCanvas.isVisible) {
+            viewBinding.myCanvas.setScene(scene)
+        }
         updatePersonPresence(scene)
 
         when (currentState) {

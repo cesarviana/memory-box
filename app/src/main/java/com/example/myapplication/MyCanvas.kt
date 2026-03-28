@@ -9,7 +9,6 @@ import android.view.View
 
 class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var scene: Scene? = null
-    private var poseState: PoseState? = null
 
     private val bluePaint = Paint().apply {
         color = Color.BLUE
@@ -17,27 +16,11 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         style = Paint.Style.STROKE
     }
 
-    private val statePaint = Paint().apply {
-        color = Color.WHITE
-        strokeWidth = 2f
-        style = Paint.Style.FILL_AND_STROKE
-        textSize = 60f
-    }
-
-    private val stateBackgroundPaint = Paint().apply {
-        color = Color.BLACK
-        style = Paint.Style.FILL
-        alpha = 180
-    }
-
     fun setScene(scene: Scene) {
         this.scene = scene
-        invalidate()
-    }
-
-    fun setPoseState(poseState: PoseState?) {
-        this.poseState = poseState
-        invalidate()
+        if (isShown) {
+            invalidate()
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -51,27 +34,5 @@ class MyCanvas(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 p.rightHand?.let { canvas.drawCircle(it.x, it.y, 10f, bluePaint) }
             }
         }
-
-        poseState?.let {
-            drawPoseState(canvas, it)
-        }
-    }
-
-    private fun drawPoseState(canvas: Canvas, state: PoseState) {
-        val text = state.toString()
-        val textBounds = android.graphics.Rect()
-        statePaint.getTextBounds(text, 0, text.length, textBounds)
-
-        val padding = 20f
-        val x = padding
-        val y = padding + textBounds.height()
-
-        val boxLeft = x - padding / 2
-        val boxTop = y - textBounds.height() - padding / 2
-        val boxRight = x + textBounds.width() + padding / 2
-        val boxBottom = y + padding / 2
-
-        canvas.drawRect(boxLeft, boxTop, boxRight, boxBottom, stateBackgroundPaint)
-        canvas.drawText(text, x, y, statePaint)
     }
 }

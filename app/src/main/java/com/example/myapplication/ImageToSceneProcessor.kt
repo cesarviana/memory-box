@@ -1,6 +1,5 @@
 package com.example.myapplication
 
-import android.util.Log
 import android.util.Size
 import androidx.camera.core.ImageProxy
 import com.google.mlkit.vision.common.InputImage
@@ -12,6 +11,11 @@ class ImageToSceneProcessor(
 ) : ImageProcessor {
 
     private var sceneUpdateListener: ((Scene) -> Unit)? = null
+    private var cachedImageSize: Size? = null
+    private var cachedCanvasSize: Size? = null
+    private var cachedMapper: PoseObjectMapper? = null
+
+    private val emptyScene = Scene(person = null)
 
     private val poseDetector = PoseDetection.getClient(
         PoseDetectorOptions.Builder().setDetectorMode(PoseDetectorOptions.STREAM_MODE).build()
@@ -26,25 +30,38 @@ class ImageToSceneProcessor(
 
         poseDetector.process(image)
             .addOnSuccessListener { pose ->
-                val imageSize = Size(image.height, image.width) // image is rotated
-                val canvasSize = getCanvasSize()
-                val mapper = PoseObjectMapper(imageSize, canvasSize)
                 if (pose.allPoseLandmarks.isEmpty()) {
-                    val emptyScene = Scene(person = null)
                     sceneUpdateListener?.invoke(emptyScene)
-                    imageProxy.close()
                     return@addOnSuccessListener
                 }
 
+                val mapper = getOrCreateMapper(image)
                 val person = mapper.mapPose(pose)
                 val scene = Scene(person = person)
                 sceneUpdateListener?.invoke(scene)
             }
             .addOnFailureListener {
                 // Error handling - could be improved with a separate error listener
-            }.addOnCompleteListener {
+            }
+            .addOnCompleteListener {
                 imageProxy.close()
             }
+    }
+
+    private fun getOrCreateMapper(image: InputImage): PoseObjectMapper {
+        val imageSize = Size(image.height, image.width) // image is rotated
+        val canvasSize = getCanvasSize()
+
+        val mapper = cachedMapper
+        if (mapper != null && cachedImageSize == imageSize && cachedCanvasSize == canvasSize) {
+            return mapper
+        }
+
+        return PoseObjectMapper(imageSize, canvasSize).also {
+            cachedImageSize = imageSize
+            cachedCanvasSize = canvasSize
+            cachedMapper = it
+        }
     }
 }
 
