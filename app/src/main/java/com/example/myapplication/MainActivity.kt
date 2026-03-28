@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
         WAITING_PERSON,
         PERSON_HOLDING_PHONE,
         WAITING_RECORD,
+        SHOWING_THANK_YOU,
     }
 
     companion object {
@@ -99,7 +100,6 @@ class MainActivity : ComponentActivity() {
         )
 
         viewBinding.buttonSkipVideo.setOnClickListener { enterWaitingRecord() }
-        viewBinding.buttonRecordMessage.setOnClickListener { startRecordingMessage() }
 
         hideSystemUI()
         cameraExecutor = Executors.newSingleThreadExecutor()
@@ -182,14 +182,23 @@ class MainActivity : ComponentActivity() {
             AppState.WAITING_RECORD -> {
                 handleWaitingRecordState(scene)
             }
+
+            AppState.SHOWING_THANK_YOU -> {
+                if (scene.hasNoPerson()) {
+                    enterWaitingPerson()
+                }
+            }
         }
     }
 
     private fun handleWaitingRecordState(scene: Scene) {
         if (scene.hasNoPerson()) {
             releasedPhoneWhileRecordingTime = null
-            stopRecording()
-            enterWaitingPerson()
+            if (activeRecording != null) {
+                finishRecordingAndShowThankYou()
+            } else {
+                enterWaitingPerson()
+            }
             return
         }
 
@@ -221,9 +230,34 @@ class MainActivity : ComponentActivity() {
 
         if (now - releasedPhoneWhileRecordingTime!! >= STOP_RECORDING_AFTER_RELEASE_MS) {
             releasedPhoneWhileRecordingTime = null
-            stopRecording()
-            enterWaitingPerson()
+            finishRecordingAndShowThankYou()
         }
+    }
+
+    private fun finishRecordingAndShowThankYou() {
+        if (activeRecording == null) {
+            enterShowingThankYou()
+            return
+        }
+
+        transitionToState(AppState.SHOWING_THANK_YOU)
+        viewBinding.buttonSkipVideo.visibility = View.GONE
+        viewBinding.centralMessage.visibility = View.VISIBLE
+        stopRecording()
+    }
+
+    private fun enterShowingThankYou() {
+        transitionToState(AppState.SHOWING_THANK_YOU)
+        releasedPhoneWhileRecordingTime = null
+
+        stopVideo()
+
+        viewBinding.imageSlideshow.visibility = View.GONE
+        viewBinding.videoView.visibility = View.GONE
+        viewBinding.recordingIndicator.visibility = View.GONE
+        viewBinding.buttonSkipVideo.visibility = View.GONE
+        viewBinding.centralMessage.visibility = View.VISIBLE
+        viewBinding.centralMessage.text = getString(R.string.recording_thank_you_message)
     }
 
     private fun enterWaitingPerson() {
@@ -240,7 +274,6 @@ class MainActivity : ComponentActivity() {
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.GONE
-        viewBinding.buttonRecordMessage.visibility = View.GONE
     }
 
     private fun enterPersonHoldingPhone() {
@@ -248,7 +281,6 @@ class MainActivity : ComponentActivity() {
         viewBinding.imageSlideshow.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
-        viewBinding.buttonRecordMessage.visibility = View.GONE
 
         playMessageVideo(onCompletionListener = {
             enterWaitingRecord()
@@ -270,13 +302,11 @@ class MainActivity : ComponentActivity() {
         viewBinding.centralMessage.visibility = View.VISIBLE
         viewBinding.centralMessage.text = getString(R.string.waiting_record_message)
         viewBinding.buttonSkipVideo.visibility = View.GONE
-        viewBinding.buttonRecordMessage.visibility = View.VISIBLE
     }
 
     private fun playMessageVideo(onCompletionListener: (() -> Unit)) {
         stopRecording()
         releasedPhoneWhileRecordingTime = null
-        viewBinding.buttonRecordMessage.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.imageSlideshow.visibility = View.GONE
@@ -402,7 +432,6 @@ class MainActivity : ComponentActivity() {
                 .start(ContextCompat.getMainExecutor(this)) { event ->
                     when (event) {
                         is VideoRecordEvent.Start -> {
-                            viewBinding.buttonRecordMessage.visibility = View.GONE
                             viewBinding.recordingIndicator.visibility = View.VISIBLE
                             startBlinking()
                             viewBinding.centralMessage.visibility = View.VISIBLE
@@ -417,13 +446,15 @@ class MainActivity : ComponentActivity() {
 
                             if (event.hasError()) {
                                 Log.e("MY_APP", "Video recording error: ${event.error}")
+                                enterWaitingPerson()
                             } else {
                                 Toast.makeText(
                                     this,
                                     getString(R.string.video_saved, recordingFilePath),
                                     Toast.LENGTH_LONG
                                 ).show()
-                                viewBinding.centralMessage.text = getString(R.string.recording_saved)
+
+                                enterShowingThankYou()
                             }
                         }
                     }

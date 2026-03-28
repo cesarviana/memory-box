@@ -9,8 +9,8 @@
     <string name="hold_phone_to_record_warning">Segure o telefone para continuar gravando</string>
     <string name="video_saved">Video salvo: %1$s</string>
     <string name="recording_saved">Mensagem gravada com sucesso</string>
+    <string name="recording_thank_you_message">Obrigado pela sua mensagem!</string>
     <string name="recording_start_error">Erro ao iniciar gravacao</string>
-    <string name="record_message">Gravar mensagem</string>
     <string name="skip_video">Pular</string>
     <string name="permission_denied">Permissao Negada</string>
 </resources>
