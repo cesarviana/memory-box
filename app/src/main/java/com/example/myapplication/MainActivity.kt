@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
@@ -95,7 +96,7 @@ class MainActivity : ComponentActivity() {
         }
 
         viewBinding.imageSlideshow.setImagesFromResources(
-            listOf(R.raw.aline_cesar_bw),
+            listOf(R.raw.aline_e_cesar),
             intervalMs = 120_000L
         )
 
@@ -140,6 +141,10 @@ class MainActivity : ComponentActivity() {
                 .build()
                 .also { it.setAnalyzer(cameraExecutor, StatefulImageAnalyzer(this)) }
 
+            val preview = Preview.Builder()
+                .build()
+                .also { it.surfaceProvider = viewBinding.cameraPreview.surfaceProvider }
+
             videoCapture = VideoCapture.withOutput(
                 Recorder.Builder()
                     .setQualitySelector(
@@ -153,7 +158,7 @@ class MainActivity : ComponentActivity() {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, imageAnalyzer, videoCapture)
+                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer, videoCapture)
             } catch (exc: Exception) {
                 Log.e("MY_APP", exc.message, exc)
             }
@@ -253,6 +258,7 @@ class MainActivity : ComponentActivity() {
         stopVideo()
 
         viewBinding.imageSlideshow.visibility = View.GONE
+        viewBinding.cameraPreview.visibility = View.GONE
         viewBinding.videoView.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.GONE
@@ -270,6 +276,7 @@ class MainActivity : ComponentActivity() {
         releasedPhoneWhileRecordingTime = null
 
         viewBinding.imageSlideshow.visibility = View.VISIBLE
+        viewBinding.cameraPreview.visibility = View.GONE
         viewBinding.videoView.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
@@ -279,6 +286,7 @@ class MainActivity : ComponentActivity() {
     private fun enterPersonHoldingPhone() {
         transitionToState(AppState.PERSON_HOLDING_PHONE)
         viewBinding.imageSlideshow.visibility = View.GONE
+        viewBinding.cameraPreview.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
 
@@ -298,6 +306,7 @@ class MainActivity : ComponentActivity() {
         stopVideo()
 
         viewBinding.imageSlideshow.visibility = View.GONE
+        viewBinding.cameraPreview.visibility = View.VISIBLE
         viewBinding.videoView.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.VISIBLE
         viewBinding.centralMessage.text = getString(R.string.waiting_record_message)
@@ -310,6 +319,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.imageSlideshow.visibility = View.GONE
+        viewBinding.cameraPreview.visibility = View.GONE
 
         stopVideo()
 
