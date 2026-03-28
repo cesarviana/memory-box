@@ -55,13 +55,12 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
         )
-        private const val STOP_RECORDING_AFTER_RELEASE_MS = 5000L
+        private const val STOP_RECORDING_AFTER_RELEASE_MS = 7000L
     }
 
     internal var currentState: AppState = AppState.WAITING_PERSON
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
-    private var lastRecordedVideoUri: String? = null
     private var blinkAnimation: android.view.animation.Animation? = null
     private var ringtonePlayer: MediaPlayer? = null
     private var hasRungForCurrentPresence = false
@@ -484,13 +483,6 @@ class MainActivity : ComponentActivity() {
                                 }
                                 enterWaitingPerson()
                             } else {
-                                lastRecordedVideoUri = outputUri.toString()
-                                Toast.makeText(
-                                    this,
-                                    getString(R.string.video_saved, lastRecordedVideoUri ?: "Galeria"),
-                                    Toast.LENGTH_LONG
-                                ).show()
-
                                 enterShowingThankYou()
                             }
                         }
