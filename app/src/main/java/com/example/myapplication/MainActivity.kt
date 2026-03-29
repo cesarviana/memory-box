@@ -303,7 +303,7 @@ class MainActivity : ComponentActivity() {
 
         viewBinding.imageSlideshow.visibility = View.GONE
         viewBinding.cameraPreview.visibility = View.GONE
-        viewBinding.videoView.visibility = View.GONE
+        viewBinding.videoPlayback.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.VISIBLE
@@ -321,7 +321,7 @@ class MainActivity : ComponentActivity() {
 
         viewBinding.imageSlideshow.visibility = View.VISIBLE
         viewBinding.cameraPreview.visibility = View.GONE
-        viewBinding.videoView.visibility = View.GONE
+        viewBinding.videoPlayback.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.GONE
@@ -348,10 +348,10 @@ class MainActivity : ComponentActivity() {
         releasedPhoneWhileRecordingTime = null
 
         stopVideo()
-
+        
         viewBinding.imageSlideshow.visibility = View.GONE
         viewBinding.cameraPreview.visibility = View.VISIBLE
-        viewBinding.videoView.visibility = View.GONE
+        viewBinding.videoPlayback.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.VISIBLE
         viewBinding.centralMessage.text = getString(R.string.waiting_record_message)
         viewBinding.buttonSkipVideo.visibility = View.GONE
@@ -369,17 +369,7 @@ class MainActivity : ComponentActivity() {
 
         try {
             val videoUri = "android.resource://${packageName}/${R.raw.cabine}"
-            viewBinding.videoView.apply {
-                setVideoURI(videoUri.toUri())
-                setOnPreparedListener { player ->
-                    player.isLooping = false
-                    start()
-                }
-                setOnCompletionListener {
-                    onCompletionListener()
-                }
-                visibility = View.VISIBLE
-            }
+            viewBinding.videoPlayback.play(videoUri.toUri(), onCompletionListener)
         } catch (e: Exception) {
             Log.e("MY_APP", "Error playing video", e)
             enterWaitingRecord()
@@ -441,14 +431,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun stopVideo() {
-        viewBinding.videoView.let {
-            it.setOnPreparedListener(null)
-            it.setOnCompletionListener(null)
-            if (it.isPlaying) {
-                it.stopPlayback()
-            }
-            it.visibility = View.GONE
-        }
+        viewBinding.videoPlayback.stop()
     }
 
     private fun startRecordingMessage() {
