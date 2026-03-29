@@ -35,7 +35,6 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.isVisible
 import com.example.myapplication.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
 import java.text.SimpleDateFormat
@@ -193,9 +192,6 @@ class MainActivity : ComponentActivity() {
 
     private fun onSceneUpdated(scene: Scene) {
         sequence.add(scene)
-        if (viewBinding.myCanvas.isVisible) {
-            viewBinding.myCanvas.setScene(scene)
-        }
         updatePersonPresence(scene)
 
         when (currentState) {
@@ -566,8 +562,8 @@ class MainActivity : ComponentActivity() {
     }
 
     internal fun getCanvasSize(): Size {
-        val width = viewBinding.myCanvas.width.takeIf { it > 0 } ?: viewBinding.root.width
-        val height = viewBinding.myCanvas.height.takeIf { it > 0 } ?: viewBinding.root.height
+        val width = viewBinding.root.width
+        val height = viewBinding.root.height
         return Size(width, height)
     }
 
