@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
         )
         private val ANALYSIS_TARGET_RESOLUTION = Size(640, 480)
         private const val STOP_RECORDING_AFTER_RELEASE_MS = 7000L
+        private const val TIME_WAIT_THANK_YOU_BEFORE_RESET_MS = 10_000L
     }
 
     internal var currentState: AppState = AppState.WAITING_PERSON
@@ -69,6 +70,8 @@ class MainActivity : ComponentActivity() {
     private var ringtonePlayer: MediaPlayer? = null
     private var hasRungForCurrentPresence = false
     private var releasedPhoneWhileRecordingTime: Long? = null
+
+    private var thankYouStateStartTime: Long = Long.MAX_VALUE
 
     internal lateinit var viewBinding: ActivityMainBinding
     private lateinit var cameraExecutor: ExecutorService
@@ -85,7 +88,8 @@ class MainActivity : ComponentActivity() {
             if (it.key in REQUIRED_PERMISSIONS && !it.value) permissionGranted = false
         }
         if (!permissionGranted) {
-            Toast.makeText(baseContext, getString(R.string.permission_denied), Toast.LENGTH_SHORT).show()
+            Toast.makeText(baseContext, getString(R.string.permission_denied), Toast.LENGTH_SHORT)
+                .show()
         } else {
             startCamera()
         }
@@ -174,7 +178,13 @@ class MainActivity : ComponentActivity() {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalyzer, videoCapture)
+                cameraProvider.bindToLifecycle(
+                    this,
+                    cameraSelector,
+                    preview,
+                    imageAnalyzer,
+                    videoCapture
+                )
             } catch (exc: Exception) {
                 Log.e("MY_APP", exc.message, exc)
             }
@@ -207,11 +217,15 @@ class MainActivity : ComponentActivity() {
             }
 
             AppState.SHOWING_THANK_YOU -> {
-                if (scene.hasNoPerson()) {
+                if (scene.hasNoPerson() || isInThisStateForToMuchTime()) {
                     enterWaitingPerson()
                 }
             }
         }
+    }
+
+    private fun isInThisStateForToMuchTime(): Boolean {
+        return System.currentTimeMillis() - thankYouStateStartTime > TIME_WAIT_THANK_YOU_BEFORE_RESET_MS
     }
 
     private fun handleWaitingRecordState(scene: Scene) {
@@ -261,7 +275,8 @@ class MainActivity : ComponentActivity() {
 
     private fun updateRecordingStopCountdown(now: Long) {
         val releaseStartedAt = releasedPhoneWhileRecordingTime ?: return
-        val remainingMs = (STOP_RECORDING_AFTER_RELEASE_MS - (now - releaseStartedAt)).coerceAtLeast(0L)
+        val remainingMs =
+            (STOP_RECORDING_AFTER_RELEASE_MS - (now - releaseStartedAt)).coerceAtLeast(0L)
         val remainingSeconds = ((remainingMs + 999L) / 1000L).toInt()
 
         viewBinding.centralMessage.visibility = View.VISIBLE
@@ -278,6 +293,7 @@ class MainActivity : ComponentActivity() {
         }
 
         transitionToState(AppState.SHOWING_THANK_YOU)
+        thankYouStateStartTime = System.currentTimeMillis()
         viewBinding.buttonSkipVideo.visibility = View.GONE
         viewBinding.centralMessage.visibility = View.VISIBLE
         stopRecording()
@@ -389,20 +405,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playRingtoneOnce() {
-        val player = ringtonePlayer ?: MediaPlayer.create(this, R.raw.receiving_call)?.also { mediaPlayer ->
-            mediaPlayer.setVolume(0.6f, 0.6f)
-            mediaPlayer.isLooping = false
-            mediaPlayer.setOnCompletionListener { completedPlayer ->
-                completedPlayer.seekTo(0)
+        val player =
+            ringtonePlayer ?: MediaPlayer.create(this, R.raw.receiving_call)?.also { mediaPlayer ->
+                mediaPlayer.setVolume(0.6f, 0.6f)
+                mediaPlayer.isLooping = false
+                mediaPlayer.setOnCompletionListener { completedPlayer ->
+                    completedPlayer.seekTo(0)
+                }
+                mediaPlayer.setOnErrorListener { failedPlayer, what, extra ->
+                    Log.e("MY_APP", "Ringtone playback error: what=$what extra=$extra")
+                    failedPlayer.release()
+                    ringtonePlayer = null
+                    true
+                }
+                ringtonePlayer = mediaPlayer
             }
-            mediaPlayer.setOnErrorListener { failedPlayer, what, extra ->
-                Log.e("MY_APP", "Ringtone playback error: what=$what extra=$extra")
-                failedPlayer.release()
-                ringtonePlayer = null
-                true
-            }
-            ringtonePlayer = mediaPlayer
-        }
 
         if (player == null) {
             Log.e("MY_APP", "Unable to create ringtone player")
@@ -455,7 +472,8 @@ class MainActivity : ComponentActivity() {
         try {
             val capture = videoCapture ?: run {
                 Log.e("MY_APP", "VideoCapture not initialized")
-                Toast.makeText(this, getString(R.string.camera_not_initialized), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.camera_not_initialized), Toast.LENGTH_SHORT)
+                    .show()
                 return
             }
 
@@ -507,7 +525,8 @@ class MainActivity : ComponentActivity() {
                 }
         } catch (e: Exception) {
             Log.e("MY_APP", "Error starting recording", e)
-            Toast.makeText(this, getString(R.string.recording_start_error), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.recording_start_error), Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
