@@ -5,7 +5,5 @@ data class Scene(
 ) {
     fun hasNoPerson(): Boolean = person == null
 
-    fun hasPerson() = !hasNoPerson()
-
 }
 

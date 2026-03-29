@@ -1,7 +1,6 @@
 package com.example.myapplication
 
 import android.graphics.PointF
-import android.util.Range
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
