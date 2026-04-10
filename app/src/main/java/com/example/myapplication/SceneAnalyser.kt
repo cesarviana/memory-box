@@ -49,12 +49,12 @@ class SceneAnalyser(
         return false
     }
 
-    fun isNearScreen(person: Person): Boolean {
+    fun isNearScreen(person: Person, distance: Int = 350): Boolean {
         if (person.leftShoulder == null || person.rightShoulder == null) {
             return false
         }
         Log.d("SceneAnalyser", "Shoulder distance: ${distance(person.leftShoulder, person.rightShoulder)}")
-        return distance(person.leftShoulder, person.rightShoulder) > 350
+        return distance(person.leftShoulder, person.rightShoulder) > distance
     }
 
     private fun distance(p1: PointF, p2: PointF): Int {

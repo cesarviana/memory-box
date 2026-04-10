@@ -7,7 +7,7 @@ data class Scene(
     fun hasNoPerson(): Boolean = person == null || this.isAway(person)
 
     fun isAway(person: Person): Boolean {
-        return !sceneAnalyser.isNearScreen(person)
+        return !sceneAnalyser.isNearScreen(person, 200)
     }
 
 }
