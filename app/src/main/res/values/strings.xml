@@ -8,7 +8,7 @@
     <string name="hold_phone_to_record_countdown">Desligue o telefone para parar de gravar\nParando em %1$d s</string>
     <string name="video_saved">Video salvo na galeria: %1$s</string>
     <string name="recording_saved">Mensagem gravada com sucesso</string>
-    <string name="recording_thank_you_message">Obrigado pela sua mensagem!</string>
+    <string name="recording_thank_you_message">Obrigado pela sua mensagem! ❤️</string>
     <string name="recording_start_error">Erro ao iniciar gravacao</string>
     <string name="skip_video">Pular</string>
     <string name="permission_denied">Permissao Negada</string>
