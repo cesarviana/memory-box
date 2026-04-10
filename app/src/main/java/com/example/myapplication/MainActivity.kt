@@ -224,6 +224,16 @@ class MainActivity : ComponentActivity() {
         return System.currentTimeMillis() - thankYouStateStartTime > TIME_WAIT_THANK_YOU_BEFORE_RESET_MS
     }
 
+    private fun showCentralMessage(message: CharSequence) {
+        viewBinding.centralMessage.visibility = View.VISIBLE
+        viewBinding.centralMessage.text = message
+    }
+
+    private fun hideCentralMessage() {
+        viewBinding.centralMessage.text = ""
+        viewBinding.centralMessage.visibility = View.GONE
+    }
+
     private fun handleWaitingRecordState(scene: Scene) {
         if (scene.hasNoPerson()) {
             releasedPhoneWhileRecordingTime = null
@@ -241,8 +251,7 @@ class MainActivity : ComponentActivity() {
             releasedPhoneWhileRecordingTime = null
             if (isHoldingPhone) {
                 startRecordingMessage()
-                viewBinding.centralMessage.text = ""
-                viewBinding.centralMessage.visibility = View.GONE
+                hideCentralMessage()
             }
             return
         }
@@ -250,8 +259,7 @@ class MainActivity : ComponentActivity() {
         if (isHoldingPhone) {
             if (releasedPhoneWhileRecordingTime != null) {
                 releasedPhoneWhileRecordingTime = null
-                viewBinding.centralMessage.text = ""
-                viewBinding.centralMessage.visibility = View.GONE
+                hideCentralMessage()
             }
             return
         }
@@ -275,10 +283,11 @@ class MainActivity : ComponentActivity() {
             (STOP_RECORDING_AFTER_RELEASE_MS - (now - releaseStartedAt)).coerceAtLeast(0L)
         val remainingSeconds = ((remainingMs + 999L) / 1000L).toInt()
 
-        viewBinding.centralMessage.visibility = View.VISIBLE
-        viewBinding.centralMessage.text = getString(
+        showCentralMessage(
+            getString(
             R.string.hold_phone_to_record_countdown,
             remainingSeconds
+            )
         )
     }
 
@@ -291,7 +300,7 @@ class MainActivity : ComponentActivity() {
         transitionToState(AppState.SHOWING_THANK_YOU)
         thankYouStateStartTime = System.currentTimeMillis()
         viewBinding.buttonSkipVideo.visibility = View.GONE
-        viewBinding.centralMessage.visibility = View.VISIBLE
+        showCentralMessage(getString(R.string.recording_thank_you_message))
         stopRecording()
     }
 
@@ -306,8 +315,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.videoPlayback.visibility = View.GONE
         viewBinding.recordingIndicator.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.GONE
-        viewBinding.centralMessage.visibility = View.VISIBLE
-        viewBinding.centralMessage.text = getString(R.string.recording_thank_you_message)
+        showCentralMessage(getString(R.string.recording_thank_you_message))
     }
 
     private fun enterWaitingPerson() {
@@ -322,7 +330,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.imageSlideshow.visibility = View.VISIBLE
         viewBinding.cameraPreview.visibility = View.GONE
         viewBinding.videoPlayback.visibility = View.GONE
-        viewBinding.centralMessage.visibility = View.GONE
+        hideCentralMessage()
         viewBinding.recordingIndicator.visibility = View.GONE
         viewBinding.buttonSkipVideo.visibility = View.GONE
     }
@@ -331,7 +339,7 @@ class MainActivity : ComponentActivity() {
         transitionToState(AppState.PERSON_HOLDING_PHONE)
         viewBinding.imageSlideshow.visibility = View.GONE
         viewBinding.cameraPreview.visibility = View.GONE
-        viewBinding.centralMessage.visibility = View.GONE
+        hideCentralMessage()
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
 
         playMessageVideo(onCompletionListener = {
@@ -352,8 +360,7 @@ class MainActivity : ComponentActivity() {
         viewBinding.imageSlideshow.visibility = View.GONE
         viewBinding.cameraPreview.visibility = View.VISIBLE
         viewBinding.videoPlayback.visibility = View.GONE
-        viewBinding.centralMessage.visibility = View.VISIBLE
-        viewBinding.centralMessage.text = getString(R.string.waiting_record_message)
+        showCentralMessage(getString(R.string.waiting_record_message))
         viewBinding.buttonSkipVideo.visibility = View.GONE
     }
 
@@ -361,7 +368,7 @@ class MainActivity : ComponentActivity() {
         stopRecording()
         releasedPhoneWhileRecordingTime = null
         viewBinding.buttonSkipVideo.visibility = View.VISIBLE
-        viewBinding.centralMessage.visibility = View.GONE
+        hideCentralMessage()
         viewBinding.imageSlideshow.visibility = View.GONE
         viewBinding.cameraPreview.visibility = View.GONE
 
@@ -479,8 +486,7 @@ class MainActivity : ComponentActivity() {
                         is VideoRecordEvent.Start -> {
                             viewBinding.recordingIndicator.visibility = View.VISIBLE
                             startBlinking()
-                            viewBinding.centralMessage.text = ""
-                            viewBinding.centralMessage.visibility = View.GONE
+                            hideCentralMessage()
                             Log.i("MY_APP", "Video recording started")
                         }
 

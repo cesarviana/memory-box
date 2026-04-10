@@ -13,12 +13,16 @@ class PoseObjectMapper(imageSize: Size, val canvasSize: Size) {
         val rightEar = pose.getPoseLandmark(PoseLandmark.RIGHT_EAR)?.position?.let { mapPoint(it) }
         val leftHand = pose.getPoseLandmark(PoseLandmark.LEFT_INDEX)?.position?.let { mapPoint(it) }
         val rightHand = pose.getPoseLandmark(PoseLandmark.RIGHT_INDEX)?.position?.let { mapPoint(it) }
+        val leftShoulder = pose.getPoseLandmark(PoseLandmark.LEFT_SHOULDER)?.position?.let { mapPoint(it) }
+        val rightShoulder = pose.getPoseLandmark(PoseLandmark.RIGHT_SHOULDER)?.position?.let { mapPoint(it) }
 
         return PersonBuilder()
             .withLeftEar(leftEar)
             .withRightEar(rightEar)
             .withLeftHand(leftHand)
             .withRightHand(rightHand)
+            .withLeftShoulder(leftShoulder)
+            .withRightShoulder(rightShoulder)
             .build()
     }
 

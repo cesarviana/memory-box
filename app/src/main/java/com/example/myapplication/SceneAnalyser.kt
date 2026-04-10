@@ -1,6 +1,7 @@
 package com.example.myapplication
 
 import android.graphics.PointF
+import android.util.Log
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -17,7 +18,7 @@ class SceneAnalyser(
 ) {
 
     fun detectPose(scene: Scene): PoseState {
-        if (scene.person == null) {
+        if (scene.person == null || !isNearScreen(scene.person)) {
             return PoseState.NO_PERSON
         }
 
@@ -46,6 +47,14 @@ class SceneAnalyser(
         }
 
         return false
+    }
+
+    fun isNearScreen(person: Person): Boolean {
+        if (person.leftShoulder == null || person.rightShoulder == null) {
+            return false
+        }
+        Log.d("SceneAnalyser", "Shoulder distance: ${distance(person.leftShoulder, person.rightShoulder)}")
+        return distance(person.leftShoulder, person.rightShoulder) > 350
     }
 
     private fun distance(p1: PointF, p2: PointF): Int {
