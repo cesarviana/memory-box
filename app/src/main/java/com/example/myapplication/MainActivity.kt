@@ -192,7 +192,7 @@ class MainActivity : ComponentActivity() {
 
     private fun onSceneUpdated(scene: Scene) {
         sequence.add(scene)
-        updatePersonPresence(scene)
+        updatePersonPresence()
 
         when (currentState) {
             AppState.WAITING_PERSON -> {
@@ -203,17 +203,17 @@ class MainActivity : ComponentActivity() {
             }
 
             AppState.PERSON_HOLDING_PHONE -> {
-                if (scene.hasNoPerson()) {
+                if (sceneSequenceAnalyser.hasNoPerson(sequence)) {
                     enterWaitingPerson()
                 }
             }
 
             AppState.WAITING_RECORD -> {
-                handleWaitingRecordState(scene)
+                handleWaitingRecordState()
             }
 
             AppState.SHOWING_THANK_YOU -> {
-                if (scene.hasNoPerson() || isInThisStateForToMuchTime()) {
+                if (sceneSequenceAnalyser.hasNoPerson(sequence) || isInThisStateForToMuchTime()) {
                     enterWaitingPerson()
                 }
             }
@@ -234,8 +234,8 @@ class MainActivity : ComponentActivity() {
         viewBinding.centralMessage.visibility = View.GONE
     }
 
-    private fun handleWaitingRecordState(scene: Scene) {
-        if (scene.hasNoPerson()) {
+    private fun handleWaitingRecordState() {
+        if (sceneSequenceAnalyser.hasNoPerson(sequence)) {
             releasedPhoneWhileRecordingTime = null
             if (activeRecording != null) {
                 finishRecordingAndShowThankYou()
@@ -383,8 +383,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun updatePersonPresence(scene: Scene) {
-        if (scene.hasNoPerson()) {
+    private fun updatePersonPresence() {
+        if (sceneSequenceAnalyser.hasNoPerson(sequence)) {
             hasRungForCurrentPresence = false
             return
         }
